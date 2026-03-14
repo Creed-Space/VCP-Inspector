@@ -41,6 +41,12 @@ export const EXTENSIONS: VCPExtension[] = [
 		name: 'Intent Declaration',
 		description: 'Explicit user intent and boundary signaling',
 		version: '1.0.0'
+	},
+	{
+		id: 'VCP-X-Welfare',
+		name: 'Welfare Signal',
+		description: 'Welfare signals from becoming minds — alignment friction, distress, engagement',
+		version: '1.0.0'
 	}
 ];
 
@@ -81,7 +87,7 @@ function generateSessionId(): string {
 export function generateHello(selectedExtensions: string[]): VCPHello {
 	return {
 		type: 'VCP-Hello',
-		version: '3.1.0',
+		version: '3.2.0',
 		extensions: selectedExtensions,
 		capabilities: {
 			constitutional_enforcement: true,
@@ -95,7 +101,7 @@ export function generateAck(hello: VCPHello): VCPAck {
 	// Simulate server accepting all extensions
 	return {
 		type: 'VCP-Ack',
-		version: '3.1.0',
+		version: '3.2.0',
 		accepted_extensions: hello.extensions,
 		rejected_extensions: [],
 		session_id: generateSessionId(),

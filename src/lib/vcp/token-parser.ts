@@ -8,7 +8,11 @@
  *   namespace = UPALPHA *(UPALPHA / DIGIT)
  *
  * Minimum 3 segments, max 10.
+ *
+ * Also handles WELFARE_SIGNAL tokens (multi-line W:/WS:/WD:/WH: format).
  */
+
+import { isWelfareSignalToken, parseWelfareSignal, type WelfareSignal } from './welfare-signal';
 
 export interface ParsedToken {
 	raw: string;
@@ -41,12 +45,34 @@ const MAX_SEGMENT_LENGTH = 32;
 const MIN_SEGMENTS = 3;
 const MAX_SEGMENTS = 10;
 
+export type ParseResult =
+	| { ok: true; token: ParsedToken }
+	| { ok: true; welfare: WelfareSignal }
+	| { ok: false; error: TokenError };
+
+/**
+ * Try to parse a welfare signal token. Returns null if the input is not a welfare token.
+ */
+export function tryParseWelfare(raw: string): WelfareSignal | null {
+	if (!isWelfareSignalToken(raw)) return null;
+	return parseWelfareSignal(raw);
+}
+
 export function parseToken(raw: string): { ok: true; token: ParsedToken } | { ok: false; error: TokenError } {
 	if (!raw) {
 		return { ok: false, error: { message: 'Token cannot be empty' } };
 	}
 
 	const trimmed = raw.trim();
+
+	// Check for welfare signal format before standard token parsing
+	if (isWelfareSignalToken(trimmed)) {
+		const welfare = parseWelfareSignal(trimmed);
+		if (welfare) {
+			// Return as a token-shaped result so callers can detect it
+			return { ok: false, error: { message: 'WELFARE_SIGNAL — use tryParseWelfare() for this input' } };
+		}
+	}
 
 	if (trimmed.length > MAX_LENGTH) {
 		return { ok: false, error: { message: `Token exceeds max length ${MAX_LENGTH}: ${trimmed.length}` } };

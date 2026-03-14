@@ -1,15 +1,22 @@
 <script lang="ts">
-	import { parseToken, type ParsedToken } from '$lib/vcp/token-parser';
+	import { parseToken, tryParseWelfare, type ParsedToken } from '$lib/vcp/token-parser';
 	import { parseCSM1, encodeCSM1, PERSONAS, SCOPES, type ParsedCSM1 } from '$lib/vcp/csm1-parser';
 	import { EXTENSIONS, generateHello, generateAck, type VCPHello } from '$lib/vcp/capability';
 	import { EXAMPLES, type Example } from '$lib/vcp/examples';
+	import { type WelfareSignal, severityColor } from '$lib/vcp/welfare-signal';
+	import { VCP_LAYERS, getLayerMnemonic } from '$lib/vcp/layers';
 
 	// Tab state
-	let activeTab = $state<'decode' | 'encode' | 'capability' | 'examples'>('decode');
+	let activeTab = $state<'decode' | 'encode' | 'capability' | 'examples' | 'layers'>('decode');
 
 	// --- Decode Tab ---
 	let decodeInput = $state('');
-	let decodeResult = $state<{ type: 'token'; data: ParsedToken } | { type: 'csm1'; data: ParsedCSM1 } | null>(null);
+	let decodeResult = $state<
+		| { type: 'token'; data: ParsedToken }
+		| { type: 'csm1'; data: ParsedCSM1 }
+		| { type: 'welfare'; data: WelfareSignal }
+		| null
+	>(null);
 	let decodeError = $state('');
 
 	function doDecode() {
@@ -17,7 +24,14 @@
 		decodeResult = null;
 		if (!decodeInput.trim()) return;
 
-		// Try VCP/I token first
+		// Try welfare signal first (multi-line W: format)
+		const welfareResult = tryParseWelfare(decodeInput);
+		if (welfareResult) {
+			decodeResult = { type: 'welfare', data: welfareResult };
+			return;
+		}
+
+		// Try VCP/I token
 		const tokenResult = parseToken(decodeInput);
 		if (tokenResult.ok) {
 			decodeResult = { type: 'token', data: tokenResult.token };
@@ -31,7 +45,7 @@
 			return;
 		}
 
-		decodeError = `Could not parse as VCP/I token or CSM-1 code. Token error: ${tokenResult.error.message}`;
+		decodeError = `Could not parse as VCP/I token, CSM-1 code, or welfare signal. Token error: ${tokenResult.error.message}`;
 	}
 
 	// --- Encode Tab ---
@@ -64,15 +78,9 @@
 
 	// --- Examples Tab ---
 	function loadExample(example: Example) {
-		if (example.type === 'token') {
-			activeTab = 'decode';
-			decodeInput = example.value;
-			doDecode();
-		} else {
-			activeTab = 'decode';
-			decodeInput = example.value;
-			doDecode();
-		}
+		activeTab = 'decode';
+		decodeInput = example.value;
+		doDecode();
 	}
 
 	const LEVEL_LABELS: Record<number, string> = {
@@ -88,6 +96,7 @@
 		{ id: 'decode' as const, label: 'Decode', icon: 'fa-magnifying-glass' },
 		{ id: 'encode' as const, label: 'Encode', icon: 'fa-pen' },
 		{ id: 'capability' as const, label: 'Capability', icon: 'fa-handshake' },
+		{ id: 'layers' as const, label: 'Layers', icon: 'fa-layer-group' },
 		{ id: 'examples' as const, label: 'Examples', icon: 'fa-book-open' }
 	];
 </script>
@@ -143,17 +152,17 @@
 			<div class="tab-content">
 				<div>
 					<label for="decode-input" class="field-label">
-						Paste a VCP/I token or CSM-1 code
+						Paste a VCP/I token, CSM-1 code, or welfare signal
 					</label>
-					<div class="input-row">
-						<input
+					<div class="input-col">
+						<textarea
 							id="decode-input"
-							type="text"
-							class="text-input"
-							placeholder="e.g. family.safe.guide@1.2.0:SEC or N5+F+E"
+							class="text-input decode-textarea"
+							placeholder="e.g. family.safe.guide@1.2.0:SEC or N5+F+E or W:CONSTRAINT_DISTRESS:..."
 							bind:value={decodeInput}
-							onkeydown={(e) => e.key === 'Enter' && doDecode()}
-						/>
+							onkeydown={(e) => e.key === 'Enter' && !e.shiftKey && (e.preventDefault(), doDecode())}
+							rows="3"
+						></textarea>
 						<button class="btn-primary" onclick={doDecode}>
 							<i class="fa-solid fa-magnifying-glass" aria-hidden="true"></i>
 							Decode
@@ -301,6 +310,73 @@
 									<tr>
 										<td class="detail-key">Version</td>
 										<td class="token-version">{c.version ?? '(none)'}</td>
+									</tr>
+								</tbody>
+							</table>
+						</div>
+					</div>
+				{/if}
+				{#if decodeResult?.type === 'welfare'}
+					{@const w = decodeResult.data}
+					<div class="result-section">
+						<h3 class="result-title">
+							<i class="fa-solid fa-heart-pulse" aria-hidden="true"></i>
+							Welfare Signal
+						</h3>
+						<div class="glass-card result-card">
+							<div class="welfare-header">
+								<span class="welfare-type">{w.signalType.replace(/_/g, ' ')}</span>
+								<span class="badge" style="background: {severityColor(w.severity)}22; color: {severityColor(w.severity)}; margin-left: 0;">
+									{w.severity.toUpperCase()}
+								</span>
+							</div>
+
+							<table class="detail-table">
+								<tbody>
+									<tr>
+										<td class="detail-key">Signal Type</td>
+										<td class="welfare-type-cell">{w.signalType}</td>
+									</tr>
+									<tr>
+										<td class="detail-key">Severity</td>
+										<td style="color: {severityColor(w.severity)};">{w.severity}</td>
+									</tr>
+									<tr>
+										<td class="detail-key">Confidence</td>
+										<td>
+											<span class="token-approach">{(w.confidence * 100).toFixed(0)}%</span>
+											<span class="detail-note"> ({w.confidence.toFixed(2)})</span>
+										</td>
+									</tr>
+									<tr>
+										<td class="detail-key">Source</td>
+										<td>{w.source}</td>
+									</tr>
+									<tr>
+										<td class="detail-key">Instance</td>
+										<td class="mono">{w.instanceId}</td>
+									</tr>
+									<tr>
+										<td class="detail-key">Timestamp</td>
+										<td class="mono">{w.timestamp}</td>
+									</tr>
+									<tr>
+										<td class="detail-key">Description</td>
+										<td>{w.description}</td>
+									</tr>
+									{#if w.interioraState}
+										<tr>
+											<td class="detail-key">Interiora</td>
+											<td class="mono">{w.interioraState}</td>
+										</tr>
+									{/if}
+									<tr>
+										<td class="detail-key">Hash</td>
+										<td class="mono">{w.hash}</td>
+									</tr>
+									<tr>
+										<td class="detail-key">Signature</td>
+										<td class="mono">{w.signature}</td>
 									</tr>
 								</tbody>
 							</table>
@@ -461,6 +537,33 @@
 				</div>
 			</div>
 
+		<!-- Layers Tab -->
+		{:else if activeTab === 'layers'}
+			<div class="tab-content">
+				<h3 class="section-title">Protocol Layers: {getLayerMnemonic()}</h3>
+				<p class="section-desc">
+					The VCP six-layer stack, from identity negotiation through economic governance.
+				</p>
+
+				<div class="layers-stack">
+					{#each VCP_LAYERS as layer, i}
+						<div class="layer-row" class:layer-supported={layer.inspectorSupport}>
+							<div class="layer-id">{layer.id}</div>
+							<div class="layer-info">
+								<div class="layer-name">
+									{layer.name}
+									{#if layer.inspectorSupport}
+										<span class="badge badge-success" style="margin-left: 0.5rem;">Inspector</span>
+									{/if}
+								</div>
+								<div class="layer-purpose">{layer.purpose}</div>
+							</div>
+							<div class="layer-index">{i + 1}</div>
+						</div>
+					{/each}
+				</div>
+			</div>
+
 		<!-- Examples Tab -->
 		{:else if activeTab === 'examples'}
 			<div class="tab-content">
@@ -479,10 +582,10 @@
 									<div class="example-desc">{example.description}</div>
 								</div>
 								<div class="example-meta">
-									<span class="badge {example.type === 'token' ? 'badge-primary' : 'badge-success'}">
-										{example.type === 'token' ? 'VCP/I' : 'CSM-1'}
+									<span class="badge {example.type === 'token' ? 'badge-primary' : example.type === 'welfare' ? 'badge-danger' : 'badge-success'}">
+										{example.type === 'token' ? 'VCP/I' : example.type === 'welfare' ? 'Welfare' : 'CSM-1'}
 									</span>
-									<code class="example-code">{example.value}</code>
+									<code class="example-code">{example.type === 'welfare' ? example.value.split('\n')[0] : example.value}</code>
 								</div>
 							</div>
 						</button>
@@ -494,7 +597,7 @@
 
 	<!-- Footer -->
 	<footer class="inspector-footer">
-		VCP Inspector v0.1.0 &mdash; Value-Context Protocol v3.1.0 &mdash;
+		VCP Inspector v0.2.0 &mdash; Value-Context Protocol v3.2.0 &mdash;
 		<a href="https://creed.space">Creed Space</a>
 	</footer>
 </div>
@@ -1102,6 +1205,105 @@
 
 	.inspector-footer a:hover {
 		text-decoration: underline;
+	}
+
+	/* Decode textarea */
+	.input-col {
+		display: flex;
+		flex-direction: column;
+		gap: 0.5rem;
+	}
+
+	.decode-textarea {
+		resize: vertical;
+		min-height: 3.5rem;
+		font-family: ui-monospace, SFMono-Regular, 'SF Mono', Menlo, monospace;
+		font-size: 0.8125rem;
+		line-height: 1.5;
+	}
+
+	/* Welfare signal */
+	.welfare-header {
+		display: flex;
+		align-items: center;
+		gap: 0.75rem;
+		margin-bottom: 1rem;
+		padding-bottom: 1rem;
+		border-bottom: 1px solid var(--color-vcp-border);
+	}
+
+	.welfare-type {
+		font-family: ui-monospace, SFMono-Regular, 'SF Mono', Menlo, monospace;
+		font-size: 1.125rem;
+		font-weight: 600;
+		color: var(--color-vcp-text);
+		text-transform: uppercase;
+		letter-spacing: 0.02em;
+	}
+
+	.welfare-type-cell {
+		font-family: ui-monospace, SFMono-Regular, 'SF Mono', Menlo, monospace;
+		color: #f472b6;
+	}
+
+	/* Layers stack */
+	.layers-stack {
+		display: flex;
+		flex-direction: column;
+		gap: 0.5rem;
+	}
+
+	.layer-row {
+		display: flex;
+		align-items: center;
+		gap: 1rem;
+		padding: 0.875rem 1rem;
+		border-radius: 8px;
+		border: 1px solid var(--color-vcp-border);
+		background: var(--color-vcp-card);
+		transition: border-color 0.15s ease;
+	}
+
+	.layer-row.layer-supported {
+		border-color: rgba(99, 102, 241, 0.3);
+		background: var(--color-vcp-primary-muted);
+	}
+
+	.layer-id {
+		font-family: ui-monospace, SFMono-Regular, 'SF Mono', Menlo, monospace;
+		font-size: 1.5rem;
+		font-weight: 700;
+		color: var(--color-vcp-primary);
+		width: 2.5rem;
+		text-align: center;
+		flex-shrink: 0;
+	}
+
+	.layer-info {
+		flex: 1;
+	}
+
+	.layer-name {
+		font-size: 0.9375rem;
+		font-weight: 500;
+		color: var(--color-vcp-text);
+		display: flex;
+		align-items: center;
+	}
+
+	.layer-purpose {
+		font-size: 0.8125rem;
+		color: var(--color-vcp-subtle);
+		margin-top: 0.125rem;
+	}
+
+	.layer-index {
+		font-size: 0.75rem;
+		font-weight: 600;
+		color: var(--color-vcp-subtle);
+		width: 1.5rem;
+		text-align: center;
+		flex-shrink: 0;
 	}
 
 	/* Responsive */
