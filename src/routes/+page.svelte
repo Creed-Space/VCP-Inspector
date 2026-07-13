@@ -6,39 +6,6 @@
 	import { type WelfareSignal, severityColor } from '$lib/vcp/welfare-signal';
 	import { VCP_LAYERS, getLayerMnemonic } from '$lib/vcp/layers';
 
-	const structuredData = JSON.stringify({
-		'@context': 'https://schema.org',
-		'@graph': [
-			{
-				'@type': 'WebSite',
-				name: 'VCP Inspector',
-				url: 'https://inspector.valuecontextprotocol.org/',
-				description: 'Interactive tools for inspecting and creating Value-Context Protocol tokens.'
-			},
-			{
-				'@type': 'WebApplication',
-				name: 'VCP Inspector',
-				url: 'https://inspector.valuecontextprotocol.org/',
-				description: 'Decode VCP tokens, build CSM-1 codes, inspect protocol layers, and simulate capability negotiation.',
-				applicationCategory: 'DeveloperApplication',
-				operatingSystem: 'Any',
-				browserRequirements: 'Requires JavaScript',
-				isAccessibleForFree: true,
-				featureList: [
-					'VCP token decoding',
-					'CSM-1 code encoding',
-					'Capability negotiation simulation',
-					'Welfare signal inspection',
-					'Protocol examples'
-				],
-				publisher: {
-					'@type': 'Organization',
-					name: 'Creed Space',
-					url: 'https://creed.space/'
-				}
-			}
-		]
-	});
 
 	// Tab state
 	let activeTab = $state<'decode' | 'encode' | 'capability' | 'examples' | 'layers'>('decode');
@@ -135,21 +102,6 @@
 	];
 </script>
 
-<svelte:head>
-	<title>VCP Inspector | Value-Context Protocol Tools</title>
-	<meta name="description" content="Decode VCP tokens, build CSM-1 codes, inspect protocol layers, and simulate Value-Context Protocol capability negotiation." />
-	<meta name="robots" content="index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1" />
-	<link rel="canonical" href="https://inspector.valuecontextprotocol.org/" />
-	<meta property="og:type" content="website" />
-	<meta property="og:site_name" content="VCP Inspector" />
-	<meta property="og:title" content="VCP Inspector | Value-Context Protocol Tools" />
-	<meta property="og:description" content="Decode VCP tokens, build CSM-1 codes, inspect protocol layers, and simulate capability negotiation." />
-	<meta property="og:url" content="https://inspector.valuecontextprotocol.org/" />
-	<meta name="twitter:card" content="summary" />
-	<meta name="twitter:title" content="VCP Inspector | Value-Context Protocol Tools" />
-	<meta name="twitter:description" content="Decode VCP tokens, build CSM-1 codes, inspect protocol layers, and simulate capability negotiation." />
-	{@html '<script type="application/ld+json">' + structuredData + '</script>'}
-</svelte:head>
 
 <div class="inspector-shell">
 	<!-- Header -->
