@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://inspector.valuecontextprotocol.org/sitemap.xml
