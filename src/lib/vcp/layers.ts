@@ -12,44 +12,44 @@ export interface VCPLayer {
 	readonly inspectorSupport: boolean;
 }
 
-export const VCP_LAYERS: readonly VCPLayer[] = [
-	{
+export const VCP_LAYERS: readonly VCPLayer[] = Object.freeze([
+	Object.freeze({
 		id: 'I',
 		name: 'Identity',
-		purpose: 'Token-based identity and capability negotiation',
+		purpose: 'Token format, namespace tiers, and identity encoding',
 		inspectorSupport: true
-	},
-	{
+	}),
+	Object.freeze({
 		id: 'T',
 		name: 'Transport',
-		purpose: 'Protocol framing and delivery guarantees',
+		purpose: 'Signed bundles, manifests, content hashes, trust anchors, and signature verification',
 		inspectorSupport: false
-	},
-	{
+	}),
+	Object.freeze({
 		id: 'S',
 		name: 'Semantics',
 		purpose: 'CSM-1 codes encoding persona, level, and scopes',
 		inspectorSupport: true
-	},
-	{
+	}),
+	Object.freeze({
 		id: 'A',
 		name: 'Adaptation',
-		purpose: 'Context-sensitive behavioral adjustment',
+		purpose: 'Context dimensions, state machines, hooks, and behavioral adaptation',
 		inspectorSupport: false
-	},
-	{
+	}),
+	Object.freeze({
 		id: 'M',
 		name: 'Messaging',
-		purpose: 'Structured message exchange and welfare signals',
-		inspectorSupport: true
-	},
-	{
+		purpose: 'Inter-agent message types, escalation severity, and delivery semantics',
+		inspectorSupport: false
+	}),
+	Object.freeze({
 		id: 'E',
 		name: 'Economic Governance',
-		purpose: 'Cost attribution, billing, and resource allocation',
+		purpose: 'Fiduciary constraints, authorization gaps, and transaction governance',
 		inspectorSupport: false
-	}
-] as const;
+	})
+]);
 
 /**
  * Get the mnemonic string for the layer stack.

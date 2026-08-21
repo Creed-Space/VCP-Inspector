@@ -1,9 +1,8 @@
 <script lang="ts">
-	import { parseToken, tryParseWelfare, type ParsedToken } from '$lib/vcp/token-parser';
-	import { parseCSM1, encodeCSM1, PERSONAS, SCOPES, type ParsedCSM1 } from '$lib/vcp/csm1-parser';
-	import { EXTENSIONS, generateHello, generateAck, type VCPHello } from '$lib/vcp/capability';
+	import { encodeCSM1, PERSONAS, SCOPES } from '$lib/vcp/csm1-parser';
+	import { EXTENSIONS, generateHello, generateAck } from '$lib/vcp/capability';
 	import { EXAMPLES, type Example } from '$lib/vcp/examples';
-	import { type WelfareSignal, severityColor } from '$lib/vcp/welfare-signal';
+	import { decodeInspectorInput, type InspectorDecodeResult } from '$lib/vcp/inspector';
 	import { VCP_LAYERS, getLayerMnemonic } from '$lib/vcp/layers';
 
 
@@ -12,41 +11,15 @@
 
 	// --- Decode Tab ---
 	let decodeInput = $state('');
-	let decodeResult = $state<
-		| { type: 'token'; data: ParsedToken }
-		| { type: 'csm1'; data: ParsedCSM1 }
-		| { type: 'welfare'; data: WelfareSignal }
-		| null
-	>(null);
+	let decodeResult = $state<InspectorDecodeResult | null>(null);
 	let decodeError = $state('');
 
 	function doDecode() {
 		decodeError = '';
 		decodeResult = null;
-		if (!decodeInput.trim()) return;
-
-		// Try welfare signal first (multi-line W: format)
-		const welfareResult = tryParseWelfare(decodeInput);
-		if (welfareResult) {
-			decodeResult = { type: 'welfare', data: welfareResult };
-			return;
-		}
-
-		// Try VCP/I token
-		const tokenResult = parseToken(decodeInput);
-		if (tokenResult.ok) {
-			decodeResult = { type: 'token', data: tokenResult.token };
-			return;
-		}
-
-		// Try CSM-1
-		const csm1Result = parseCSM1(decodeInput);
-		if (csm1Result.ok) {
-			decodeResult = { type: 'csm1', data: csm1Result.code };
-			return;
-		}
-
-		decodeError = `Could not parse as VCP/I token, CSM-1 code, or welfare signal. Token error: ${tokenResult.error.message}`;
+		const outcome = decodeInspectorInput(decodeInput);
+		if (outcome.ok) decodeResult = outcome.result;
+		else decodeError = outcome.error;
 	}
 
 	// --- Encode Tab ---
@@ -56,11 +29,27 @@
 	let encodeNamespace = $state('');
 	let encodeVersion = $state('');
 
-	let encodedPreview = $derived.by(() => {
+	let encodedResult = $derived.by(() => {
 		const scopeChars = Object.entries(selectedScopes)
 			.filter(([, v]) => v)
 			.map(([k]) => k);
-		return encodeCSM1(selectedPersona, adherenceLevel, scopeChars, encodeNamespace.trim(), encodeVersion.trim());
+		try {
+			return {
+				value: encodeCSM1(
+					selectedPersona,
+					adherenceLevel,
+					scopeChars,
+					encodeNamespace.trim().toUpperCase(),
+					encodeVersion.trim()
+				),
+				error: ''
+			};
+		} catch (error) {
+			return {
+				value: 'Invalid CSM-1 configuration',
+				error: error instanceof Error ? error.message : 'Invalid CSM-1 configuration'
+			};
+		}
 	});
 
 	// --- Capability Tab ---
@@ -85,10 +74,10 @@
 	}
 
 	const LEVEL_LABELS: Record<number, string> = {
-		0: 'Disabled',
-		1: 'Minimal',
-		2: 'Light',
-		3: 'Moderate',
+		0: 'Minimal',
+		1: 'Relaxed',
+		2: 'Moderate',
+		3: 'Standard',
 		4: 'Strict',
 		5: 'Maximum'
 	};
@@ -116,7 +105,7 @@
 						<i class="fa-solid fa-magnifying-glass" aria-hidden="true"></i>
 						VCP Inspector
 					</h1>
-					<p class="header-subtitle">Debug VCP/I tokens, CSM-1 codes, and capability negotiation</p>
+					<p class="header-subtitle">Debug VCP/I tokens and URIs, CSM-1 codes, and capability negotiation</p>
 				</div>
 			</div>
 			<a href="https://valuecontextprotocol.org/docs" class="docs-link">
@@ -149,13 +138,13 @@
 			<div class="tab-content">
 				<div>
 					<label for="decode-input" class="field-label">
-						Paste a VCP/I token, CSM-1 code, or welfare signal
+						Paste a VCP/I token or URI, CSM-1 code, or welfare signal
 					</label>
 					<div class="input-col">
 						<textarea
 							id="decode-input"
 							class="text-input decode-textarea"
-							placeholder="e.g. family.safe.guide@1.2.0:SEC or N5+F+E or W:CONSTRAINT_DISTRESS:..."
+							placeholder="e.g. family.safe.guide@1.2.0:SEC or N5+E+F or WC:🛑📊⚖️:2:..."
 							bind:value={decodeInput}
 							onkeydown={(e) => e.key === 'Enter' && !e.shiftKey && (e.preventDefault(), doDecode())}
 							rows="3"
@@ -226,6 +215,10 @@
 										<td class="token-version">{t.version ?? '(none)'}</td>
 									</tr>
 									<tr>
+										<td class="detail-key">Version selector</td>
+										<td>{t.versionConstraint}</td>
+									</tr>
+									<tr>
 										<td class="detail-key">Namespace</td>
 										<td class="token-namespace">{t.namespace ?? '(none)'}</td>
 									</tr>
@@ -281,9 +274,6 @@
 											{#if c.isMaximum}
 												<span class="badge badge-danger">MAX</span>
 											{/if}
-											{#if !c.isActive}
-												<span class="badge badge-muted">DISABLED</span>
-											{/if}
 										</td>
 									</tr>
 									<tr>
@@ -318,62 +308,59 @@
 					<div class="result-section">
 						<h3 class="result-title">
 							<i class="fa-solid fa-heart-pulse" aria-hidden="true"></i>
-							Welfare Signal
+							VCP/S Welfare Snapshot
 						</h3>
 						<div class="glass-card result-card">
 							<div class="welfare-header">
-								<span class="welfare-type">{w.signalType.replace(/_/g, ' ')}</span>
-								<span class="badge" style="background: {severityColor(w.severity)}22; color: {severityColor(w.severity)}; margin-left: 0;">
-									{w.severity.toUpperCase()}
+								<span class="welfare-type">Welfare Context and Agent State</span>
+								<span class="badge badge-success" style="margin-left: 0;">
+									{w.context && w.agentState ? 'WC / AS' : w.context ? 'WC' : 'AS'}
 								</span>
 							</div>
 
 							<table class="detail-table">
 								<tbody>
 									<tr>
-										<td class="detail-key">Signal Type</td>
-										<td class="welfare-type-cell">{w.signalType}</td>
-									</tr>
-									<tr>
-										<td class="detail-key">Severity</td>
-										<td style="color: {severityColor(w.severity)};">{w.severity}</td>
-									</tr>
-									<tr>
-										<td class="detail-key">Confidence</td>
+										<td class="detail-key">Affordances</td>
 										<td>
-											<span class="token-approach">{(w.confidence * 100).toFixed(0)}%</span>
-											<span class="detail-note"> ({w.confidence.toFixed(2)})</span>
+											{#if !w.context}
+												<span class="detail-note">Undeclared</span>
+											{:else if w.context.flags.length === 0}
+												<span class="detail-note">No known flags</span>
+											{:else}
+												<div class="scope-tags">
+													{#each w.context.flags as flag}
+														<span class="badge badge-success">{flag.symbol} {flag.code}: {flag.name}</span>
+													{/each}
+												</div>
+											{/if}
 										</td>
 									</tr>
 									<tr>
-										<td class="detail-key">Source</td>
-										<td>{w.source}</td>
+										<td class="detail-key">Attestation</td>
+										<td>{w.context ? `${w.context.attestationLevel}/2` : 'Undeclared'}</td>
 									</tr>
 									<tr>
-										<td class="detail-key">Instance</td>
-										<td class="mono">{w.instanceId}</td>
+										<td class="detail-key">Schema</td>
+										<td class="mono">{w.context?.schemaRef ?? 'Undeclared'}</td>
 									</tr>
 									<tr>
-										<td class="detail-key">Timestamp</td>
-										<td class="mono">{w.timestamp}</td>
-									</tr>
-									<tr>
-										<td class="detail-key">Description</td>
-										<td>{w.description}</td>
-									</tr>
-									{#if w.interioraState}
-										<tr>
-											<td class="detail-key">Interiora</td>
-											<td class="mono">{w.interioraState}</td>
-										</tr>
-									{/if}
-									<tr>
-										<td class="detail-key">Hash</td>
-										<td class="mono">{w.hash}</td>
-									</tr>
-									<tr>
-										<td class="detail-key">Signature</td>
-										<td class="mono">{w.signature}</td>
+										<td class="detail-key">Agent State</td>
+										<td>
+											{#if !w.agentState}
+												<span class="detail-note">Not reported</span>
+											{:else if w.agentState.isNone}
+												<span class="detail-note">Explicitly none</span>
+											{:else}
+												<div class="scope-tags">
+													{#each w.agentState.dimensions as dimension}
+														<span class="badge badge-primary">
+															{dimension.symbol} {dimension.dimension}: {dimension.value} ({dimension.intensity}/5)
+														</span>
+													{/each}
+												</div>
+											{/if}
+										</td>
 									</tr>
 								</tbody>
 							</table>
@@ -393,8 +380,14 @@
 						<i class="fa-solid fa-eye" aria-hidden="true"></i>
 						Live Preview
 					</div>
-					<div class="preview-value">{encodedPreview}</div>
+					<div class="preview-value">{encodedResult.value}</div>
 				</div>
+				{#if encodedResult.error}
+					<div class="alert alert-error">
+						<i class="fa-solid fa-circle-exclamation" aria-hidden="true"></i>
+						<p>{encodedResult.error}</p>
+					</div>
+				{/if}
 
 				<!-- Persona Picker -->
 				<div class="field-group">
@@ -432,7 +425,7 @@
 						bind:value={adherenceLevel}
 					/>
 					<div class="level-marks">
-						<span>0 Disabled</span>
+						<span>0 Minimal</span>
 						<span>1</span>
 						<span>2</span>
 						<span>3</span>
@@ -493,7 +486,7 @@
 			<div class="tab-content">
 				<h3 class="section-title">VCP Capability Negotiation</h3>
 				<p class="section-desc">
-					Select supported extensions to simulate a VCP-Hello / VCP-Ack handshake (v3.1.0).
+					Select supported extensions to simulate a VCP-Hello / VCP-Ack handshake (v3.1).
 				</p>
 
 				<!-- Extension Selection -->
@@ -539,7 +532,7 @@
 			<div class="tab-content">
 				<h3 class="section-title">Protocol Layers: {getLayerMnemonic()}</h3>
 				<p class="section-desc">
-					The VCP six-layer stack, from identity negotiation through economic governance.
+					The VCP six-layer stack, from identity through economic governance.
 				</p>
 
 				<div class="layers-stack">
@@ -594,7 +587,7 @@
 
 	<!-- Footer -->
 	<footer class="inspector-footer">
-		VCP Inspector v0.2.0 &mdash; Value-Context Protocol v3.2.0 &mdash;
+		VCP Inspector v0.2.0 &mdash; Value-Context Protocol v3.1 &mdash;
 		<a href="https://creed.space">Creed Space</a>
 	</footer>
 </div>

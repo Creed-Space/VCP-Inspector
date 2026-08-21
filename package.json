@@ -7,7 +7,11 @@
     "dev": "vite dev",
     "build": "vite build",
     "preview": "vite preview",
-    "check": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json"
+    "check": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json",
+    "test": "node --test tests/*.test.mjs",
+    "test:coverage": "node --experimental-test-coverage --test-coverage-include='src/lib/vcp/*.ts' --test-coverage-lines=95 --test-coverage-functions=95 --test-coverage-branches=90 --test tests/*.test.mjs",
+    "test:interop": "node scripts/test-interop.mjs",
+    "validate": "npm run test:coverage && npm run check && npm run build"
   },
   "devDependencies": {
     "@sveltejs/adapter-static": "^3.0.0",
@@ -22,5 +26,8 @@
   },
   "dependencies": {
     "@vercel/analytics": "^1.6.1"
+  },
+  "overrides": {
+    "cookie": "0.7.2"
   }
 }

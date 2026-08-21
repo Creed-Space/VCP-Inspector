@@ -38,6 +38,20 @@ npm install
 npm run dev
 ```
 
+Run the standalone test, coverage, type, and build gates with:
+
+```bash
+npm run validate
+```
+
+An optional cross-repository gate reads the current SDK fixtures and Spec schemas directly. It does not affect standalone validation:
+
+```bash
+npm run test:interop -- --sdk-root ../VCP-SDK --spec-root ../VCP-Spec
+```
+
+`VCP_SDK_ROOT` and `VCP_SPEC_ROOT` provide equivalent path configuration.
+
 ## Related
 
 - [VCP Specification](https://github.com/Creed-Space/VCP-Spec) — The protocol spec (v3.1)
