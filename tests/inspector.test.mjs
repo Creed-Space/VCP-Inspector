@@ -5,7 +5,7 @@ import { EXAMPLES } from '../src/lib/vcp/examples.ts';
 import { decodeInspectorInput } from '../src/lib/vcp/inspector.ts';
 import { getLayerMnemonic, VCP_LAYERS } from '../src/lib/vcp/layers.ts';
 
-test('Inspector routes strict token, CSM-1, and welfare inputs after outer copy/paste trimming', () => {
+test('Inspector routes strict token, CSM-1, welfare, and Agent Runtime inputs after outer copy/paste trimming', () => {
 	const token = decodeInspectorInput('  family.safe.guide@1.2.0  ');
 	assert.equal(token.ok, true);
 	assert.equal(token.result.type, 'token');
@@ -20,6 +20,11 @@ test('Inspector routes strict token, CSM-1, and welfare inputs after outer copy/
 	assert.equal(welfare.ok, true);
 	assert.equal(welfare.result.type, 'welfare');
 	assert.equal(welfare.result.data.agentState.isNone, true);
+
+	const runtime = decodeInspectorInput(EXAMPLES.find((example) => example.type === 'agent-runtime').value);
+	assert.equal(runtime.ok, true);
+	assert.equal(runtime.result.type, 'agent-runtime');
+	assert.equal(runtime.result.data.kind, 'situation_view');
 	assert.ok(Object.isFrozen(token));
 	assert.ok(Object.isFrozen(token.result));
 });
@@ -49,6 +54,7 @@ test('Inspector reports typed, empty, oversized, welfare-specific, and aggregate
 	assert.match(decodeInspectorInput('x'.repeat(65_537)).error, /64 KiB/);
 	assert.match(decodeInspectorInput('é'.repeat(32_769)).error, /64 KiB/);
 	assert.deepEqual(decodeInspectorInput('WC:not-valid'), { ok: false, error: 'Invalid VCP welfare snapshot.' });
+	assert.match(decodeInspectorInput('[1, 2]').error, /JSON object/);
 	const invalid = decodeInspectorInput('not-a-protocol-value');
 	assert.equal(invalid.ok, false);
 	assert.match(invalid.error, /VCP\/I:/);

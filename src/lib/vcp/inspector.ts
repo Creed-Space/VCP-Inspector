@@ -3,11 +3,13 @@
 import { parseCSM1, type ParsedCSM1 } from './csm1-parser.ts';
 import { parseIdentityInput, type ParsedToken } from './token-parser.ts';
 import { isWelfareSignalToken, parseWelfareSignal, type WelfareSignal } from './welfare-signal.ts';
+import { parseAgentRuntimeArtifact, type ParsedAgentRuntimeArtifact } from './agent-runtime.ts';
 
 export type InspectorDecodeResult =
 	| { readonly type: 'token'; readonly data: ParsedToken }
 	| { readonly type: 'csm1'; readonly data: ParsedCSM1 }
-	| { readonly type: 'welfare'; readonly data: WelfareSignal };
+	| { readonly type: 'welfare'; readonly data: WelfareSignal }
+	| { readonly type: 'agent-runtime'; readonly data: ParsedAgentRuntimeArtifact };
 
 export type InspectorDecodeOutcome =
 	| { readonly ok: true; readonly result: InspectorDecodeResult }
@@ -24,6 +26,12 @@ export function decodeInspectorInput(raw: unknown): InspectorDecodeOutcome {
 	}
 	const input = raw.trim();
 	if (!input) return Object.freeze({ ok: false, error: '' });
+	if (input.startsWith('{') || input.startsWith('[')) {
+		const artifact = parseAgentRuntimeArtifact(input);
+		return artifact.ok
+			? Object.freeze({ ok: true, result: Object.freeze({ type: 'agent-runtime', data: artifact.artifact }) })
+			: Object.freeze({ ok: false, error: artifact.error });
+	}
 
 	if (isWelfareSignalToken(input)) {
 		const welfare = parseWelfareSignal(input);
