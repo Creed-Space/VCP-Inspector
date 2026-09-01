@@ -108,16 +108,19 @@ const agentResult = {
   failure: null,
 };
 
-test("all four P2 artifact kinds produce compact immutable summaries", () => {
+test("all runtime artifact kinds are declared and core artifacts produce immutable summaries", () => {
   const outcomes = [situation, descriptor, affordance, agentResult].map(
     (value) => parseAgentRuntimeArtifact(JSON.stringify(value)),
   );
-  assert.deepEqual(AGENT_RUNTIME_KINDS, [
+  assert.equal(AGENT_RUNTIME_KINDS.length, 27);
+  assert.deepEqual(AGENT_RUNTIME_KINDS.slice(0, 4), [
     "agent_result",
     "situation_view",
-    "capability_descriptor",
-    "affordance",
+    "evidence_claim",
+    "evidence_graph",
   ]);
+  assert.ok(AGENT_RUNTIME_KINDS.includes("action_intent"));
+  assert.ok(AGENT_RUNTIME_KINDS.includes("accretion_candidate"));
   for (const outcome of outcomes) {
     assert.equal(outcome.ok, true);
     assert.ok(Object.isFrozen(outcome));
@@ -312,14 +315,23 @@ test("AgentResult validates profile, schema lineage, status, assurance, and evid
     ).error,
     /meta.*forbidden.*grant/,
   );
-  assert.match(
+  assert.equal(
     parseAgentRuntimeArtifact(
       JSON.stringify({
         ...agentResult,
         meta: { ...agentResult.meta, profile: "controlled@0.1.0" },
       }),
+    ).ok,
+    true,
+  );
+  assert.match(
+    parseAgentRuntimeArtifact(
+      JSON.stringify({
+        ...agentResult,
+        meta: { ...agentResult.meta, profile: "future@0.1.0" },
+      }),
     ).error,
-    /observe/,
+    /profile/,
   );
   assert.match(
     parseAgentRuntimeArtifact(
@@ -379,5 +391,166 @@ test("AgentResult validates profile, schema lineage, status, assurance, and evid
       JSON.stringify({ ...agentResult, evidence_refs: [1] }),
     ).error,
     /evidence_refs/,
+  );
+});
+
+test("controlled and accretive lifecycle artifacts expose lineage and separated assurance", () => {
+  const actionIntent = {
+    kind: "action_intent",
+    version: AGENT_RUNTIME_VERSION,
+    intent_id: "intent.local.write",
+    run_ref: "vcp:artifact:run:run.local.1",
+    step_ref: "vcp:artifact:step:step.local.1",
+    affordance_ref: "vcp:artifact:affordance:affordance.local.write",
+    arguments_digest: digest("1"),
+    destination: "local://settings/theme",
+    context_digest: digest("2"),
+    policy_digest: digest("3"),
+    descriptor_digest: digest("4"),
+    requested_at: "2026-09-01T00:00:00Z",
+    digest: digest("5"),
+    schema_digest: digest("6"),
+    effect_class: "reversible_write",
+    situation_digest: digest("7"),
+    expected_postconditions: ["setting equals requested value"],
+    resource_ceiling: situation.budget,
+    idempotency_scope: "run.local.1/step.local.1",
+    requested_authority: "local-reference-write",
+  };
+  const candidate = {
+    kind: "accretion_candidate",
+    version: AGENT_RUNTIME_VERSION,
+    candidate_id: "candidate.local.procedure",
+    candidate_kind: "procedure",
+    content: { steps: ["validate", "prove"] },
+    scope: ["tenant:local"],
+    provenance_refs: ["vcp:artifact:capsule:capsule.local.1"],
+    validation_status: "passed",
+    review_required: false,
+    digest: digest("8"),
+    source_run_ref: "vcp:artifact:run:run.local.1",
+    supporting_evidence_refs: ["vcp:artifact:evidence:evidence.local.1"],
+    contradicting_evidence_refs: [],
+    sensitivity: "internal",
+    confidence: 1,
+    invalidation_triggers: ["dependency digest changes"],
+    revalidation: "repeat deterministic validation",
+    promotion_policy: "automatic-low-risk-local-procedure",
+    expected_utility: 0.5,
+    rollback: "revoke and invalidate future retrieval",
+    quarantine_status: "not_required",
+    dependency_digest: digest("9"),
+  };
+  const intentResult = parseAgentRuntimeArtifact(JSON.stringify(actionIntent));
+  const candidateResult = parseAgentRuntimeArtifact(JSON.stringify(candidate));
+  assert.equal(intentResult.ok, true);
+  assert.equal(candidateResult.ok, true);
+  assert.deepEqual(intentResult.artifact.lineageRefs, [
+    actionIntent.run_ref,
+    actionIntent.step_ref,
+    actionIntent.affordance_ref,
+  ]);
+  assert.equal(intentResult.artifact.effectClass, "reversible_write");
+  assert.equal(candidateResult.artifact.status, "passed");
+  assert.equal(
+    candidateResult.artifact.lineageRefs.includes(candidate.source_run_ref),
+    true,
+  );
+  assert.deepEqual(
+    candidateResult.artifact.assurance.map((axis) => axis.axis),
+    ["syntax", "integrity", "authority", "execution"],
+  );
+  assert.equal(candidateResult.artifact.assurance[1].status, "unknown");
+});
+
+test("generic lifecycle boundary rejects forged fields, malformed digests, refs, grants, and event order", () => {
+  const baseIntent = {
+    kind: "action_intent",
+    version: AGENT_RUNTIME_VERSION,
+    intent_id: "intent.local.write",
+    run_ref: "vcp:artifact:run:run.local.1",
+    step_ref: "vcp:artifact:step:step.local.1",
+    affordance_ref: "vcp:artifact:affordance:affordance.local.write",
+    arguments_digest: digest("1"),
+    destination: "local://settings/theme",
+    context_digest: digest("2"),
+    policy_digest: digest("3"),
+    descriptor_digest: digest("4"),
+    requested_at: "2026-09-01T00:00:00Z",
+    digest: digest("5"),
+    schema_digest: digest("6"),
+    effect_class: "reversible_write",
+    situation_digest: digest("7"),
+    expected_postconditions: [],
+    resource_ceiling: situation.budget,
+    idempotency_scope: "one",
+    requested_authority: "local-reference-write",
+  };
+  assert.match(
+    parseAgentRuntimeArtifact(
+      JSON.stringify({ ...baseIntent, forged_grant: true }),
+    ).error,
+    /forbidden/,
+  );
+  assert.match(
+    parseAgentRuntimeArtifact(
+      JSON.stringify({ ...baseIntent, policy_digest: "bad" }),
+    ).error,
+    /policy_digest/,
+  );
+  assert.match(
+    parseAgentRuntimeArtifact(JSON.stringify({ ...baseIntent, run_ref: "bad" }))
+      .error,
+    /run_ref/,
+  );
+
+  const grant = {
+    kind: "authority_grant_ref",
+    version: AGENT_RUNTIME_VERSION,
+    grant_ref: "vcp:artifact:grant:grant.local.1",
+    decision_ref: "vcp:artifact:decision:decision.local.1",
+    intent_digest: digest("1"),
+    single_use: false,
+    expires_at: "2026-09-01T01:00:00Z",
+    actor_ref: "vcp:artifact:principal:agent.local",
+    tenant_ref: "vcp:artifact:tenant:local",
+    run_ref: "vcp:artifact:run:run.local.1",
+    step_ref: "vcp:artifact:step:step.local.1",
+    capability_ref: "vcp:artifact:capability:local.setting.write",
+    arguments_digest: digest("2"),
+    destination: "local://settings/theme",
+    effect_class: "reversible_write",
+    resource_ceiling: situation.budget,
+    nonce_digest: digest("3"),
+  };
+  assert.match(
+    parseAgentRuntimeArtifact(JSON.stringify(grant)).error,
+    /single_use/,
+  );
+
+  const event = {
+    kind: "event_envelope",
+    version: AGENT_RUNTIME_VERSION,
+    event_id: "event.local.1",
+    event_type: "run.started",
+    aggregate_ref: "vcp:artifact:run:run.local.1",
+    sequence: -1,
+    occurred_at: "2026-09-01T00:00:00Z",
+    actor_ref: "vcp:artifact:principal:agent.local",
+    payload_ref: "vcp:artifact:run:run.local.1",
+    digest: digest("4"),
+    source_ref: "vcp:artifact:source:local",
+    recorded_at: "2026-09-01T00:00:00Z",
+    causal_parent_ref: null,
+    payload_digest: digest("5"),
+    redacted_summary: "run started",
+    sensitivity: "internal",
+    evidence_refs: [],
+    audit_refs: [],
+    state_transition_version: "1",
+  };
+  assert.match(
+    parseAgentRuntimeArtifact(JSON.stringify(event)).error,
+    /sequence/,
   );
 });
