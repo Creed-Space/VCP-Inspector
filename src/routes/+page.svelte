@@ -502,6 +502,34 @@
 									<tr><td class="detail-key">Digest</td><td class="mono digest-cell">{artifact.digest ?? 'Contained in metadata'}</td></tr>
 								</tbody>
 							</table>
+							<section class="runtime-assurance" aria-labelledby="runtime-assurance-title">
+								<h4 id="runtime-assurance-title">Independent assurance axes</h4>
+								<div class="assurance-vector">
+									{#each artifact.assurance as axis}
+										<div class="assurance-axis">
+											<strong>{axis.axis}</strong>
+											<span class="badge {axis.status === 'passed' ? 'badge-success' : 'badge-primary'}">{axis.status}</span>
+											<p>{axis.detail}</p>
+										</div>
+									{/each}
+								</div>
+							</section>
+							{#if artifact.lineageRefs.length > 0}
+								<details class="runtime-lineage" open>
+									<summary>Lineage references ({artifact.lineageRefs.length})</summary>
+									<ul>
+										{#each artifact.lineageRefs as reference}<li class="mono">{reference}</li>{/each}
+									</ul>
+								</details>
+							{/if}
+							{#if artifact.safeNext.length > 0}
+								<div class="runtime-next">
+									<strong>Safe next transitions</strong>
+									<ul>
+										{#each artifact.safeNext as transition}<li>{transition}</li>{/each}
+									</ul>
+								</div>
+							{/if}
 							<details class="runtime-raw">
 								<summary>Validated JSON</summary>
 								<pre class="code-block code-indigo">{JSON.stringify(artifact.raw, null, 2)}</pre>
@@ -1432,6 +1460,56 @@
 
 	.digest-cell {
 		word-break: break-all;
+	}
+
+	.runtime-assurance {
+		margin-top: 1rem;
+	}
+
+	.runtime-assurance h4 {
+		margin-bottom: 0.75rem;
+		font-size: 0.875rem;
+		color: var(--color-vcp-muted);
+	}
+
+	.assurance-vector {
+		display: grid;
+		grid-template-columns: repeat(auto-fit, minmax(12rem, 1fr));
+		gap: 0.75rem;
+	}
+
+	.assurance-axis {
+		padding: 0.75rem;
+		border: 1px solid var(--color-vcp-border);
+		border-radius: 8px;
+	}
+
+	.assurance-axis strong {
+		margin-right: 0.5rem;
+		text-transform: capitalize;
+	}
+
+	.assurance-axis p {
+		margin-top: 0.5rem;
+		font-size: 0.75rem;
+		color: var(--color-vcp-subtle);
+	}
+
+	.runtime-lineage,
+	.runtime-next {
+		margin-top: 1rem;
+		padding: 0.75rem;
+		border: 1px solid var(--color-vcp-border);
+		border-radius: 8px;
+	}
+
+	.runtime-lineage ul,
+	.runtime-next ul {
+		margin: 0.75rem 0 0 1rem;
+	}
+
+	.runtime-lineage li {
+		overflow-wrap: anywhere;
 	}
 
 	/* Layers stack */
