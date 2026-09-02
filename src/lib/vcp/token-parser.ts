@@ -72,7 +72,7 @@ export function parseToken(raw: unknown): TokenParseResult {
 	if (isWelfareSignalToken(raw)) return failure('WELFARE_SIGNAL: use tryParseWelfare() for this input');
 
 	const match = TOKEN_PATTERN.exec(raw);
-	if (!match?.groups || match[0] !== raw) return failure('Invalid VCP/I token format');
+	if (!match?.groups || match[0] !== raw) return failure('Invalid VCP/I token format (expected 3-10 lowercase dot-separated segments, e.g. family.safe.guide)');
 
 	const { path: canonical, version: rawVersion, namespace } = match.groups;
 	const version = canonicalizeVersion(rawVersion);

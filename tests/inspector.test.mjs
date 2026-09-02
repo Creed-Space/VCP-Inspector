@@ -48,11 +48,49 @@ test('Inspector reports typed, empty, oversized, welfare-specific, and aggregate
 	assert.deepEqual(decodeInspectorInput('   '), { ok: false, error: '' });
 	assert.match(decodeInspectorInput('x'.repeat(65_537)).error, /64 KiB/);
 	assert.match(decodeInspectorInput('é'.repeat(32_769)).error, /64 KiB/);
-	assert.deepEqual(decodeInspectorInput('WC:not-valid'), { ok: false, error: 'Invalid VCP welfare snapshot.' });
+	assert.deepEqual(decodeInspectorInput('WC:not-valid'), {
+		ok: false,
+		error: 'Invalid VCP welfare snapshot: WC line must be WC:<flags>:<attestation 0-2>:<schema-ref>, with no spaces or ":" in the schema reference.'
+	});
+	assert.match(decodeInspectorInput('family.safe.guide\nAS:none').error, /Only standalone WC\/AS lines are supported/);
+	assert.match(decodeInspectorInput('AS:🎯aligned:9').error, /AS intensity must be 1-5/);
 	const invalid = decodeInspectorInput('not-a-protocol-value');
 	assert.equal(invalid.ok, false);
 	assert.match(invalid.error, /VCP\/I:/);
 	assert.match(invalid.error, /CSM-1:/);
+});
+
+test('Inspector picks the parser error matching the input shape', () => {
+	const conflict = decodeInspectorInput('N5+F+A');
+	assert.equal(conflict.ok, false);
+	assert.equal(conflict.error, 'Conflicting CSM-1 scopes: F and A.');
+	assert.doesNotMatch(conflict.error, /VCP\/I/);
+
+	const dotted = decodeInspectorInput('Z4+P@1.0');
+	assert.equal(dotted.ok, false);
+	assert.match(dotted.error, /^Invalid CSM-1 code format/);
+
+	const cased = decodeInspectorInput('Family.Safe.Guide');
+	assert.equal(cased.ok, false);
+	assert.equal(cased.error, 'Invalid VCP/I token format (expected 3-10 lowercase dot-separated segments, e.g. family.safe.guide).');
+
+	const uri = decodeInspectorInput('creed://creed.space/family.safe.guide:BAD');
+	assert.equal(uri.ok, false);
+	assert.match(uri.error, /^Invalid VCP\/I URI authority or namespace\.$/);
+});
+
+test('Inspector routes CSM-1 COMPACT codes before the token and NANO parsers', () => {
+	const compact = decodeInspectorInput(' CS1|nanny|5|family.safe.guide|F,E ');
+	assert.equal(compact.ok, true);
+	assert.equal(compact.result.type, 'csm1-compact');
+	assert.equal(compact.result.data.encoded, 'N5+E+F');
+	assert.equal(compact.result.data.token.canonical, 'family.safe.guide');
+	assert.ok(Object.isFrozen(compact.result));
+
+	const invalid = decodeInspectorInput('CS1|nanny|5|family.safe.guide|E,F,A');
+	assert.equal(invalid.ok, false);
+	assert.equal(invalid.error, 'Conflicting CSM-1 scopes: F and A.');
+	assert.match(decodeInspectorInput('CS1|nobody').error, /^Invalid CSM-1 COMPACT code format/);
 });
 
 test('every curated example is unique and decodes as its declared type', async (t) => {

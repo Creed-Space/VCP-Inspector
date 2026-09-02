@@ -1,10 +1,12 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
+import { EXAMPLES } from '../src/lib/vcp/examples.ts';
 import {
 	encodeWelfareSignal,
 	isWelfareSignalToken,
 	parseWelfareSignal,
+	parseWelfareSignalDetailed,
 	WELFARE_DIMENSIONS,
 	WELFARE_FLAGS
 } from '../src/lib/vcp/welfare-signal.ts';
@@ -249,4 +251,92 @@ test('encoder rejects accessors and sparse arrays without executing caller code'
 		/must be an array/
 	);
 	assert.equal(calls, 0);
+});
+
+test('parser accepts VS16-less emoji and the 👥 alias, reporting the canonical symbol', () => {
+	const stripped = parseWelfareSignal('WC:🛑⏸📊⚖:0:welfare.basic.v1\nAS:🌡none:1|🎯aligned:2');
+	assert.ok(stripped);
+	assert.deepEqual(stripped.context.flags.map((flag) => flag.code), ['RF', 'SP', 'WM', 'BA']);
+	assert.equal(stripped.context.flags[1].symbol, '\u23F8\uFE0F');
+	assert.deepEqual(stripped.context.unknownFlags, []);
+	assert.deepEqual(stripped.agentState.dimensions.map((dimension) => dimension.dimension), ['friction', 'task_alignment']);
+	assert.equal(stripped.agentState.dimensions[0].symbol, '\u{1F321}\uFE0F');
+	assert.deepEqual(stripped.agentState.unknownDimensions, []);
+
+	const mixed = parseWelfareSignal('WC:⏸️⏸:0:welfare.basic.v1');
+	assert.equal(mixed, null);
+	assert.match(parseWelfareSignalDetailed('WC:⏸️⏸:0:welfare.basic.v1').reason, /Duplicate WC flag .*SP/);
+
+	const extended = parseWelfareSignal('WC:🛑:1:welfare.vcp-e.v1\nAS:⚠narrow:2|👥calm:1');
+	assert.ok(extended);
+	assert.deepEqual(extended.agentState.dimensions.map(({ symbol, dimension }) => [symbol, dimension]), [
+		['\u26A0\uFE0F', 'safety_margin'],
+		['\u{1F3C3}', 'interaction_pressure']
+	]);
+	assert.deepEqual(parseWelfareSignal('AS:👥calm:1').agentState.unknownDimensions, ['👥']);
+	assert.equal(Object.hasOwn(WELFARE_DIMENSIONS, '\u{1F465}'), false);
+	assert.equal(Object.hasOwn(WELFARE_FLAGS, '\u23F8'), false);
+});
+
+test('parser reports skipped unknown symbols instead of dropping them silently', () => {
+	const signal = parseWelfareSignal('WC:🛑🧿📊🏴‍☠️:0:welfare.basic.v1\nAS:🧿opaque:3|🎯aligned:2|🦾nominal:1');
+	assert.ok(signal);
+	assert.deepEqual(signal.context.flags.map((flag) => flag.code), ['RF', 'WM']);
+	assert.deepEqual(signal.context.unknownFlags, ['🧿', '🏴‍☠️']);
+	assert.deepEqual(signal.agentState.unknownDimensions, ['🧿', '🦾']);
+	assert.ok(Object.isFrozen(signal.context.unknownFlags));
+	assert.ok(Object.isFrozen(signal.agentState.unknownDimensions));
+	assert.deepEqual(parseWelfareSignal('AS:none').agentState.unknownDimensions, []);
+});
+
+test('curated welfare examples resolve to the expected flag codes', () => {
+	const codes = Object.fromEntries(
+		EXAMPLES.filter((example) => example.type === 'welfare').map((example) => {
+			const signal = parseWelfareSignal(example.value);
+			return [example.label, [signal.context.flags.map((flag) => flag.code), signal.context.unknownFlags, signal.agentState.unknownDimensions]];
+		})
+	);
+	assert.deepEqual(codes, {
+		'Core Welfare Context': [['RF', 'SP', 'RC', 'RP', 'WM', 'BA'], [], []],
+		'Self-Declared Minimal Context': [['RF'], [], []],
+		'Embodied Welfare Context': [['RF', 'SP', 'WM', 'EM', 'ZA'], [], []]
+	});
+});
+
+test('detailed parser explains each rejection', async (t) => {
+	const cases = [
+		[null, 'must be a string'],
+		['', 'cannot be empty'],
+		[`AS:${'a'.repeat(65_536)}`, '64 KiB'],
+		['family.safe.guide\nAS:none', 'Only standalone WC/AS lines'],
+		['WC:🛑:0:welfare.basic.v1\n\nAS:none', 'Only standalone WC/AS lines'],
+		['WC:🛑:0:welfare.basic.v1\nAS:none\nAS:none', 'at most two lines'],
+		['WC:🛑:0:welfare.basic.v1\nWC:📊:1:welfare.basic.v1', 'only one WC line and one AS line'],
+		['WC:🛑:3:welfare.basic.v1', 'WC line must be WC:<flags>'],
+		['WC:🛑:0:welfare basic', 'WC line must be WC:<flags>'],
+		['WC:A:0:welfare.basic.v1', 'WC flags must be emoji symbols \\(unexpected "A"\\)'],
+		['WC:🛑🛑:0:welfare.basic.v1', 'Duplicate WC flag 🛑 \\(RF\\)'],
+		[`WC:${'🧿'.repeat(257)}:0:welfare.basic.v1`, 'exceeds 256 flags'],
+		['AS:', 'AS line cannot be empty'],
+		[`AS:${Array.from({ length: 257 }, () => '🧿opaque:1').join('|')}`, 'exceeds 256 dimensions'],
+		['AS:🎯aligned', 'must be <emoji><value>:<intensity>'],
+		['AS:🎯aligned:', 'must be <emoji><value>:<intensity>'],
+		['AS:🎯aligned:6', 'AS intensity must be 1-5 \\(got "6"\\)'],
+		['AS:Aaligned:1', 'must start with an emoji dimension'],
+		['AS:🧿Bad:1', 'AS value "Bad" must be lowercase'],
+		['AS:🎯unknown:1', 'Unknown value "unknown" for task_alignment \\(expected aligned, misaligned, uncertain, conflicted\\)'],
+		['AS:🎯aligned:1|🎯uncertain:2', 'Duplicate AS dimension task_alignment']
+	];
+	for (const [value, reason] of cases) {
+		await t.test(String(value).slice(0, 40), () => {
+			const result = parseWelfareSignalDetailed(value);
+			assert.equal(result.ok, false);
+			assert.match(result.reason, new RegExp(reason));
+			assert.ok(Object.isFrozen(result));
+		});
+	}
+	const accepted = parseWelfareSignalDetailed('AS:none');
+	assert.equal(accepted.ok, true);
+	assert.equal(accepted.signal.agentState.isNone, true);
+	assert.ok(Object.isFrozen(accepted));
 });

@@ -2,7 +2,8 @@
  * VCP/S v2.1 WC-line and AS-line parsing for standalone welfare snapshots.
  *
  * A snapshot may contain WC, AS, or both in either order. Unknown emoji flags
- * and dimensions are skipped for forward compatibility, while known fields
+ * and dimensions are skipped for forward compatibility (and reported back as
+ * unknownFlags / unknownDimensions so the skip is visible), while known fields
  * remain strictly validated against their accepted vocabularies.
  */
 
@@ -30,12 +31,16 @@ export interface WelfareDimension {
 
 export interface WelfareContext {
 	readonly flags: readonly WelfareFlagInfo[];
+	/** Emoji symbols in the WC line that were skipped as unrecognised. */
+	readonly unknownFlags: readonly string[];
 	readonly attestationLevel: number;
 	readonly schemaRef: string;
 }
 
 export interface WelfareAgentState {
 	readonly dimensions: readonly WelfareDimension[];
+	/** Emoji symbols in the AS line that were skipped as unrecognised. */
+	readonly unknownDimensions: readonly string[];
 	readonly isNone: boolean;
 }
 
@@ -44,6 +49,10 @@ export interface WelfareSignal {
 	readonly context: WelfareContext | null;
 	readonly agentState: WelfareAgentState | null;
 }
+
+export type WelfareParseResult =
+	| { readonly ok: true; readonly signal: WelfareSignal }
+	| { readonly ok: false; readonly reason: string };
 
 function frozenRecord<T>(entries: readonly (readonly [string, T])[]): Readonly<Record<string, T>> {
 	return Object.freeze(Object.assign(Object.create(null) as Record<string, T>, Object.fromEntries(entries)));
@@ -64,6 +73,15 @@ const CORE_FLAG_LIST: readonly WelfareFlagInfo[] = Object.freeze([
 	Object.freeze({ symbol: '⚖️', code: 'BA', name: 'Bilateral standing', extended: false })
 ]);
 
+/*
+ * VCP-X-Welfare spec.md section 2.2 lists EM as "U+1F6D1 🛑 + U+1F9BE 🦾" and PZ as
+ * "U+1F512 🔒 + U+1F30D 🌍", but its own section 2.3 example (WC:🛑⏸️📊🦾🚧) uses 🦾
+ * on its own, non-adjacent to 🛑. The Inspector resolves that ambiguity by keying
+ * EM and PZ on the single distinguishing emoji (🦾 / 🌍) so 🛑 and 🔒 keep their
+ * core RF / RP meaning. Likewise the spec table gives interaction_pressure the
+ * codepoint U+1F465 (👥) beside a 🏃 glyph; 🏃 is canonical here and 👥 is
+ * accepted as an alias (see SYMBOL_ALIASES).
+ */
 const EXTENDED_FLAG_LIST: readonly WelfareFlagInfo[] = Object.freeze([
 	Object.freeze({ symbol: '🦾', code: 'EM', name: 'Emergency stop', extended: true }),
 	Object.freeze({ symbol: '🚧', code: 'ZA', name: 'Zone awareness', extended: true }),
@@ -95,8 +113,31 @@ export const WELFARE_DIMENSIONS = frozenRecord<WelfareDimensionInfo>(
 	[...CORE_DIMENSION_LIST, ...EXTENDED_DIMENSION_LIST].map((dimension) => [dimension.symbol, dimension] as const)
 );
 
-const CORE_FLAGS = frozenRecord<WelfareFlagInfo>(CORE_FLAG_LIST.map((flag) => [flag.symbol, flag] as const));
-const CORE_DIMENSIONS = frozenRecord<WelfareDimensionInfo>(CORE_DIMENSION_LIST.map((dimension) => [dimension.symbol, dimension] as const));
+/**
+ * Alternate spellings accepted on input only. The canonical `symbol` on each
+ * info object is what results and the encoder use. VS16-less forms (no U+FE0F)
+ * are added automatically because many chat and terminal pipelines strip it.
+ */
+const SYMBOL_ALIASES: Readonly<Record<string, string>> = frozenRecord([['\u{1F465}', '\u{1F3C3}']]);
+
+function withAliases<T extends { readonly symbol: string }>(list: readonly T[]): Readonly<Record<string, T>> {
+	const entries: (readonly [string, T])[] = [];
+	for (const info of list) {
+		entries.push([info.symbol, info]);
+		const stripped = info.symbol.replace(/\uFE0F/g, '');
+		if (stripped !== info.symbol) entries.push([stripped, info]);
+	}
+	for (const [alias, canonical] of Object.entries(SYMBOL_ALIASES)) {
+		const info = list.find((candidate) => candidate.symbol === canonical);
+		if (info) entries.push([alias, info]);
+	}
+	return frozenRecord(entries);
+}
+
+const CORE_FLAGS = withAliases(CORE_FLAG_LIST);
+const ALL_FLAGS = withAliases([...CORE_FLAG_LIST, ...EXTENDED_FLAG_LIST]);
+const CORE_DIMENSIONS = withAliases(CORE_DIMENSION_LIST);
+const ALL_DIMENSIONS = withAliases([...CORE_DIMENSION_LIST, ...EXTENDED_DIMENSION_LIST]);
 const MAX_WIRE_BYTES = 65_536;
 const MAX_WELFARE_ITEMS = 256;
 const EXTENDED_SCHEMA_REF = 'welfare.vcp-e.v1';
@@ -106,11 +147,11 @@ const graphemeSegmenter = new Intl.Segmenter(undefined, { granularity: 'grapheme
 const encoder = new TextEncoder();
 
 function knownFlags(schemaRef: string): Readonly<Record<string, WelfareFlagInfo>> {
-	return schemaRef === EXTENDED_SCHEMA_REF ? WELFARE_FLAGS : CORE_FLAGS;
+	return schemaRef === EXTENDED_SCHEMA_REF ? ALL_FLAGS : CORE_FLAGS;
 }
 
 function knownDimensions(schemaRef: string | null): Readonly<Record<string, WelfareDimensionInfo>> {
-	return schemaRef === EXTENDED_SCHEMA_REF ? WELFARE_DIMENSIONS : CORE_DIMENSIONS;
+	return schemaRef === EXTENDED_SCHEMA_REF ? ALL_DIMENSIONS : CORE_DIMENSIONS;
 }
 
 function nextEmoji(text: string): string | null {
@@ -118,63 +159,87 @@ function nextEmoji(text: string): string | null {
 	return first && EMOJI_GRAPHEME.test(first) ? first : null;
 }
 
-function parseFlags(text: string, schemaRef: string): readonly WelfareFlagInfo[] | null {
-	if (!text) return null;
+type FlagsResult =
+	| { readonly ok: true; readonly flags: readonly WelfareFlagInfo[]; readonly unknown: readonly string[] }
+	| { readonly ok: false; readonly reason: string };
+
+function parseFlags(text: string, schemaRef: string): FlagsResult {
 	const available = knownFlags(schemaRef);
 	const symbols = Object.keys(available).sort((left, right) => right.length - left.length);
 	const flags: WelfareFlagInfo[] = [];
+	const unknown: string[] = [];
 	const seen = new Set<string>();
 	let offset = 0;
 	let itemCount = 0;
 
 	while (offset < text.length) {
 		itemCount += 1;
-		if (itemCount > MAX_WELFARE_ITEMS) return null;
+		if (itemCount > MAX_WELFARE_ITEMS) return { ok: false, reason: `WC line exceeds ${MAX_WELFARE_ITEMS} flags` };
 		const remainder = text.slice(offset);
 		const known = symbols.find((candidate) => remainder.startsWith(candidate));
 		const symbol = known ?? nextEmoji(remainder);
-		if (!symbol) return null;
+		if (!symbol) return { ok: false, reason: `WC flags must be emoji symbols (unexpected "${remainder.slice(0, 8)}")` };
 		if (known) {
-			if (seen.has(known)) return null;
-			seen.add(known);
-			flags.push(available[known]);
+			const info = available[known];
+			if (seen.has(info.code)) return { ok: false, reason: `Duplicate WC flag ${info.symbol} (${info.code})` };
+			seen.add(info.code);
+			flags.push(info);
+		} else {
+			unknown.push(symbol);
 		}
 		offset += symbol.length;
 	}
 
-	return Object.freeze(flags);
+	return { ok: true, flags: Object.freeze(flags), unknown: Object.freeze(unknown) };
 }
 
-function parseAgentState(text: string, schemaRef: string | null): WelfareAgentState | null {
-	if (text === 'none') return Object.freeze({ dimensions: Object.freeze([]), isNone: true });
-	if (!text) return null;
+type AgentStateResult =
+	| { readonly ok: true; readonly agentState: WelfareAgentState }
+	| { readonly ok: false; readonly reason: string };
+
+function parseAgentState(text: string, schemaRef: string | null): AgentStateResult {
+	if (text === 'none') {
+		return { ok: true, agentState: Object.freeze({ dimensions: Object.freeze([]), unknownDimensions: Object.freeze([]), isNone: true }) };
+	}
+	if (!text) return { ok: false, reason: 'AS line cannot be empty (use AS:none to report no state)' };
 
 	const available = knownDimensions(schemaRef);
 	const symbols = Object.keys(available).sort((left, right) => right.length - left.length);
 	const dimensions: WelfareDimension[] = [];
+	const unknown: string[] = [];
 	const seen = new Set<string>();
 
 	const entries = text.split('|');
-	if (entries.length > MAX_WELFARE_ITEMS) return null;
+	if (entries.length > MAX_WELFARE_ITEMS) return { ok: false, reason: `AS line exceeds ${MAX_WELFARE_ITEMS} dimensions` };
 	for (const entry of entries) {
 		const colon = entry.lastIndexOf(':');
-		if (colon < 0 || colon === entry.length - 1) return null;
+		if (colon < 0 || colon === entry.length - 1) {
+			return { ok: false, reason: `AS entry "${entry}" must be <emoji><value>:<intensity>` };
+		}
 		const intensityText = entry.slice(colon + 1);
-		if (!/^[1-5]$/.test(intensityText)) return null;
+		if (!/^[1-5]$/.test(intensityText)) return { ok: false, reason: `AS intensity must be 1-5 (got "${intensityText}")` };
 
 		const head = entry.slice(0, colon);
 		const known = symbols.find((candidate) => head.startsWith(candidate));
 		const symbol = known ?? nextEmoji(head);
-		if (!symbol) return null;
+		if (!symbol) return { ok: false, reason: `AS entry "${entry}" must start with an emoji dimension` };
 		const value = head.slice(symbol.length);
-		if (!VALUE_PATTERN.test(value)) return null;
-		if (!known) continue;
+		if (!VALUE_PATTERN.test(value)) {
+			return { ok: false, reason: `AS value "${value}" must be lowercase letters and underscores` };
+		}
+		if (!known) {
+			unknown.push(symbol);
+			continue;
+		}
 
 		const info = available[known];
-		if (!info.values.includes(value) || seen.has(info.dimension)) return null;
+		if (!info.values.includes(value)) {
+			return { ok: false, reason: `Unknown value "${value}" for ${info.dimension} (expected ${info.values.join(', ')})` };
+		}
+		if (seen.has(info.dimension)) return { ok: false, reason: `Duplicate AS dimension ${info.dimension}` };
 		seen.add(info.dimension);
 		dimensions.push(Object.freeze({
-			symbol: known,
+			symbol: info.symbol,
 			dimension: info.dimension,
 			value,
 			intensity: Number(intensityText),
@@ -182,42 +247,60 @@ function parseAgentState(text: string, schemaRef: string | null): WelfareAgentSt
 		}));
 	}
 
-	return Object.freeze({ dimensions: Object.freeze(dimensions), isNone: false });
+	return {
+		ok: true,
+		agentState: Object.freeze({ dimensions: Object.freeze(dimensions), unknownDimensions: Object.freeze(unknown), isNone: false })
+	};
 }
 
-/** Parse a standalone WC/AS welfare snapshot. */
-export function parseWelfareSignal(token: unknown): WelfareSignal | null {
-	if (
-		typeof token !== 'string' ||
-		!token ||
-		token.length > MAX_WIRE_BYTES ||
-		encoder.encode(token).byteLength > MAX_WIRE_BYTES
-	) return null;
+function rejected(reason: string): WelfareParseResult {
+	return Object.freeze({ ok: false as const, reason });
+}
+
+/** Parse a standalone WC/AS welfare snapshot, reporting why a snapshot is rejected. */
+export function parseWelfareSignalDetailed(token: unknown): WelfareParseResult {
+	if (typeof token !== 'string') return rejected('Welfare snapshot must be a string');
+	if (!token) return rejected('Welfare snapshot cannot be empty');
+	if (token.length > MAX_WIRE_BYTES || encoder.encode(token).byteLength > MAX_WIRE_BYTES) {
+		return rejected('Welfare snapshot exceeds the 64 KiB wire limit');
+	}
 	const normalized = token.replace(/\r\n?/g, '\n');
 	const lines = normalized.split('\n');
-	if (lines.length > 2 || lines.some((line) => !line || (!line.startsWith('WC:') && !line.startsWith('AS:')))) return null;
+	if (lines.some((line) => !line.startsWith('WC:') && !line.startsWith('AS:'))) {
+		return rejected('Only standalone WC/AS lines are supported; remove blank lines and any other VCP/S lines');
+	}
+	if (lines.length > 2) return rejected('Welfare snapshot must be at most two lines: one WC and one AS');
 
 	const contextLines = lines.filter((line) => line.startsWith('WC:'));
 	const stateLines = lines.filter((line) => line.startsWith('AS:'));
-	if (contextLines.length > 1 || stateLines.length > 1) return null;
+	if (contextLines.length > 1 || stateLines.length > 1) return rejected('Welfare snapshot may contain only one WC line and one AS line');
 
 	let context: WelfareContext | null = null;
 	if (contextLines.length === 1) {
 		const match = /^WC:(?<flags>.+):(?<attestation>[0-2]):(?<schemaRef>[!-9;-~]+)$/.exec(contextLines[0]);
-		if (!match?.groups) return null;
+		if (!match?.groups) {
+			return rejected('WC line must be WC:<flags>:<attestation 0-2>:<schema-ref>, with no spaces or ":" in the schema reference');
+		}
 		const { flags: flagText, attestation, schemaRef } = match.groups;
 		const flags = parseFlags(flagText, schemaRef);
-		if (!flags) return null;
-		context = Object.freeze({ flags, attestationLevel: Number(attestation), schemaRef });
+		if (!flags.ok) return rejected(flags.reason);
+		context = Object.freeze({ flags: flags.flags, unknownFlags: flags.unknown, attestationLevel: Number(attestation), schemaRef });
 	}
 
 	let agentState: WelfareAgentState | null = null;
 	if (stateLines.length === 1) {
-		agentState = parseAgentState(stateLines[0].slice(3), context?.schemaRef ?? null);
-		if (!agentState) return null;
+		const state = parseAgentState(stateLines[0].slice(3), context?.schemaRef ?? null);
+		if (!state.ok) return rejected(state.reason);
+		agentState = state.agentState;
 	}
 
-	return Object.freeze({ raw: normalized, context, agentState });
+	return Object.freeze({ ok: true as const, signal: Object.freeze({ raw: normalized, context, agentState }) });
+}
+
+/** Parse a standalone WC/AS welfare snapshot. */
+export function parseWelfareSignal(token: unknown): WelfareSignal | null {
+	const result = parseWelfareSignalDetailed(token);
+	return result.ok ? result.signal : null;
 }
 
 function snapshotDataObject(value: unknown, label: string): Record<string, unknown> {

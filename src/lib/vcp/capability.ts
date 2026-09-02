@@ -14,7 +14,7 @@ export const EXTENSIONS: readonly VCPExtension[] = Object.freeze([
 	Object.freeze({ id: 'VCP-X-Relational', name: 'Relational Continuity', description: 'Cross-session relationship state and memory', version: '1.0.0' }),
 	Object.freeze({ id: 'VCP-X-Consensus', name: 'Constitutional Consensus', description: 'Multi-party constitutional agreement protocol', version: '1.0.0' }),
 	Object.freeze({ id: 'VCP-X-Torch', name: 'Torch Handoff', description: 'Session state transfer between Becoming Mind instances', version: '1.0.0' }),
-	Object.freeze({ id: 'VCP-X-Intent', name: 'Intent Declaration', description: 'Explicit user intent and boundary signaling', version: '1.0.0' }),
+	Object.freeze({ id: 'VCP-X-Intent', name: 'Intent Inference', description: 'Heuristic, user-correctable intent inference from VCP context signals', version: '0.1.0' }),
 	Object.freeze({ id: 'VCP-X-Welfare', name: 'Welfare Instrumentation', description: 'Welfare affordances and state from Becoming Minds', version: '1.0.0' })
 ]);
 
@@ -297,6 +297,11 @@ function normalizeServerCapabilities(serverCapabilities: unknown): NormalizedSer
 	const coreFeatures = input.core_features as Record<string, unknown>;
 	for (const key of ['encryption', 'injection_scanning', 'revocation', 'audit_chain', 'context_opacity'] as const) {
 		if (typeof coreFeatures[key] !== 'boolean') throw new TypeError(`VCP server core_features.${key} must be boolean`);
+	}
+	// Additional core-feature entries are allowed (and echoed) but must also be booleans,
+	// matching the Python, Rust and WebMCP reference implementations.
+	for (const [key, value] of Object.entries(coreFeatures)) {
+		if (typeof value !== 'boolean') throw new TypeError(`VCP server core_features.${key} must be boolean`);
 	}
 
 	for (const [key, maximum] of [

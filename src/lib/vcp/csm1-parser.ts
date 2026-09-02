@@ -5,6 +5,8 @@
  * case-sensitive. User-interface normalization belongs at the UI boundary.
  */
 
+import { parseToken, type ParsedToken } from './token-parser.ts';
+
 export interface PersonaInfo {
 	readonly char: string;
 	readonly name: string;
@@ -56,12 +58,28 @@ export interface ParsedCSM1 {
 	readonly isMaximum: boolean;
 }
 
+/** CSM-1 tier C (COMPACT) code: `CS1|persona|level|token|scopes`, carrying a VCP/I token. */
+export interface ParsedCSM1Compact {
+	readonly raw: string;
+	readonly persona: PersonaInfo;
+	readonly level: number;
+	readonly scopes: readonly ScopeInfo[];
+	readonly token: ParsedToken;
+	/** Equivalent tier A (NANO) code with canonical scope order. */
+	readonly encoded: string;
+	readonly isMaximum: boolean;
+}
+
 export interface CSM1Error {
 	readonly message: string;
 }
 
 export type CSM1ParseResult =
 	| { readonly ok: true; readonly code: ParsedCSM1 }
+	| { readonly ok: false; readonly error: CSM1Error };
+
+export type CSM1CompactParseResult =
+	| { readonly ok: true; readonly code: ParsedCSM1Compact }
 	| { readonly ok: false; readonly error: CSM1Error };
 
 const MAX_LENGTH = 45;
@@ -73,6 +91,17 @@ const VERSION_PATTERN = new RegExp(`^(?:${SEMVER_COMPONENT}\\.${SEMVER_COMPONENT
 const CSM1_PATTERN = new RegExp(
 	`^(?<persona>[NZGAMDC])(?<level>[0-5])(?<scopes>(?:\\+[FWPETOVAHSR])*)(?::(?<namespace>[A-Z]{1,8}))?(?:@(?<version>(?:${SEMVER_COMPONENT}\\.${SEMVER_COMPONENT}\\.${SEMVER_COMPONENT}|latest|canary)))?$`
 );
+const PERSONA_NAMES = frozenRecord<string>([
+	['nanny', 'N'],
+	['sentinel', 'Z'],
+	['godparent', 'G'],
+	['ambassador', 'A'],
+	['muse', 'M'],
+	['mediator', 'D'],
+	['custom', 'C']
+] as const);
+const MAX_COMPACT_LENGTH = 294; // VCP/S §2.8: COMPACT tier is 18-294 characters
+const COMPACT_PATTERN = /^CS1\|(?<persona>[a-z]+)\|(?<level>[0-5])\|(?<token>[^|]+)\|(?<scopes>(?:[FWPETOVAHSR](?:,[FWPETOVAHSR])*)?)$/;
 const SCOPE_CONFLICTS = Object.freeze([
 	Object.freeze(['F', 'A'] as const),
 	Object.freeze(['V', 'A'] as const),
@@ -84,7 +113,7 @@ function exactMatch(pattern: RegExp, value: string): boolean {
 	return match?.[0] === value;
 }
 
-function failure(message: string): CSM1ParseResult {
+function failure(message: string): { readonly ok: false; readonly error: CSM1Error } {
 	return Object.freeze({ ok: false as const, error: Object.freeze({ message }) });
 }
 
@@ -102,7 +131,7 @@ export function parseCSM1(raw: unknown): CSM1ParseResult {
 	if (raw.length > MAX_LENGTH) return failure(`CSM-1 code exceeds max length ${MAX_LENGTH}`);
 
 	const match = CSM1_PATTERN.exec(raw);
-	if (!match?.groups || match[0] !== raw) return failure('Invalid CSM-1 code format');
+	if (!match?.groups || match[0] !== raw) return failure('Invalid CSM-1 code format (expected e.g. N5+E+F or Z4+P+W:SEC@1.0.0)');
 
 	const { persona: personaChar, level: levelText, scopes: scopeText, namespace, version } = match.groups;
 	const scopeChars = scopeText ? scopeText.slice(1).split('+') : [];
@@ -130,6 +159,56 @@ export function parseCSM1(raw: unknown): CSM1ParseResult {
 			scopes,
 			namespace: namespace ?? null,
 			version: version ?? null,
+			encoded,
+			isMaximum: level === 5
+		})
+	});
+}
+
+/**
+ * Parse a CSM-1 tier C (COMPACT) code per CSM1 grammar section 6.4:
+ * `CS1|<persona-name>|<level>|<vcp-i token>|<scope,list>`.
+ *
+ * The scope list may be empty, matching the reference SDK's `to_compact()`
+ * output for scope-less codes. COMPACT carries no namespace, so a `custom`
+ * persona is accepted here without one (the NANO `encoded` form then has none).
+ */
+export function parseCSM1Compact(raw: unknown): CSM1CompactParseResult {
+	if (typeof raw !== 'string') return failure('CSM-1 COMPACT code must be a string');
+	if (!raw) return failure('CSM-1 COMPACT code cannot be empty');
+	if (raw.length > MAX_COMPACT_LENGTH) return failure(`CSM-1 COMPACT code exceeds max length ${MAX_COMPACT_LENGTH}`);
+
+	const match = COMPACT_PATTERN.exec(raw);
+	if (!match?.groups || match[0] !== raw) {
+		return failure('Invalid CSM-1 COMPACT code format (expected CS1|persona|level|token|scopes, e.g. CS1|nanny|5|family.safe.guide|F,E)');
+	}
+
+	const { persona: personaName, level: levelText, token: tokenText, scopes: scopeText } = match.groups;
+	const personaChar = PERSONA_NAMES[personaName];
+	if (!personaChar) return failure(`Unknown CSM-1 persona name "${personaName}"`);
+
+	const token = parseToken(tokenText);
+	if (!token.ok) return failure(`CSM-1 COMPACT token: ${token.error.message}`);
+
+	const scopeChars = scopeText ? scopeText.split(',') : [];
+	const uniqueScopes = new Set(scopeChars);
+	if (uniqueScopes.size !== scopeChars.length) return failure('CSM-1 scopes must be unique');
+	const conflict = scopeConflict(uniqueScopes);
+	if (conflict) return failure(`Conflicting CSM-1 scopes: ${conflict[0]} and ${conflict[1]}`);
+
+	const level = Number(levelText);
+	const canonicalScopes = [...scopeChars].sort();
+	let encoded = `${personaChar}${level}`;
+	if (canonicalScopes.length) encoded += `+${canonicalScopes.join('+')}`;
+
+	return Object.freeze({
+		ok: true as const,
+		code: Object.freeze({
+			raw,
+			persona: PERSONAS[personaChar],
+			level,
+			scopes: Object.freeze(scopeChars.map((scopeChar) => SCOPES[scopeChar])),
+			token: token.token,
 			encoded,
 			isMaximum: level === 5
 		})

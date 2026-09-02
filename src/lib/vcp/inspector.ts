@@ -1,12 +1,13 @@
 /** Pure UI-boundary helpers so Inspector routing is independently testable. */
 
-import { parseCSM1, type ParsedCSM1 } from './csm1-parser.ts';
+import { parseCSM1, parseCSM1Compact, type ParsedCSM1, type ParsedCSM1Compact } from './csm1-parser.ts';
 import { parseIdentityInput, type ParsedToken } from './token-parser.ts';
-import { isWelfareSignalToken, parseWelfareSignal, type WelfareSignal } from './welfare-signal.ts';
+import { isWelfareSignalToken, parseWelfareSignalDetailed, type WelfareSignal } from './welfare-signal.ts';
 
 export type InspectorDecodeResult =
 	| { readonly type: 'token'; readonly data: ParsedToken }
 	| { readonly type: 'csm1'; readonly data: ParsedCSM1 }
+	| { readonly type: 'csm1-compact'; readonly data: ParsedCSM1Compact }
 	| { readonly type: 'welfare'; readonly data: WelfareSignal };
 
 export type InspectorDecodeOutcome =
@@ -26,9 +27,15 @@ export function decodeInspectorInput(raw: unknown): InspectorDecodeOutcome {
 	if (!input) return Object.freeze({ ok: false, error: '' });
 
 	if (isWelfareSignalToken(input)) {
-		const welfare = parseWelfareSignal(input);
-		if (!welfare) return Object.freeze({ ok: false, error: 'Invalid VCP welfare snapshot.' });
-		return Object.freeze({ ok: true, result: Object.freeze({ type: 'welfare', data: welfare }) });
+		const welfare = parseWelfareSignalDetailed(input);
+		if (!welfare.ok) return Object.freeze({ ok: false, error: `Invalid VCP welfare snapshot: ${welfare.reason}.` });
+		return Object.freeze({ ok: true, result: Object.freeze({ type: 'welfare', data: welfare.signal }) });
+	}
+
+	if (input.startsWith('CS1|')) {
+		const compact = parseCSM1Compact(input);
+		if (!compact.ok) return Object.freeze({ ok: false, error: `${compact.error.message}.` });
+		return Object.freeze({ ok: true, result: Object.freeze({ type: 'csm1-compact', data: compact.code }) });
 	}
 
 	const token = parseIdentityInput(input);
@@ -37,6 +44,9 @@ export function decodeInspectorInput(raw: unknown): InspectorDecodeOutcome {
 	const csm1 = parseCSM1(input);
 	if (csm1.ok) return Object.freeze({ ok: true, result: Object.freeze({ type: 'csm1', data: csm1.code }) });
 
+	// Pick the parser message that matches the input's shape; fall back to both.
+	if (/^[A-Z][0-5]/.test(input)) return Object.freeze({ ok: false, error: `${csm1.error.message}.` });
+	if (input.includes('://') || input.includes('.')) return Object.freeze({ ok: false, error: `${token.error.message}.` });
 	return Object.freeze({
 		ok: false,
 		error: `Could not parse the input. VCP/I: ${token.error.message}. CSM-1: ${csm1.error.message}.`

@@ -89,6 +89,16 @@
 		{ id: 'layers' as const, label: 'Layers', icon: 'fa-layer-group' },
 		{ id: 'examples' as const, label: 'Examples', icon: 'fa-book-open' }
 	];
+
+	function onTabKeydown(event: KeyboardEvent) {
+		const step = event.key === 'ArrowRight' ? 1 : event.key === 'ArrowLeft' ? -1 : 0;
+		if (!step) return;
+		event.preventDefault();
+		const index = TAB_ITEMS.findIndex((tab) => tab.id === activeTab);
+		const next = TAB_ITEMS[(index + step + TAB_ITEMS.length) % TAB_ITEMS.length];
+		activeTab = next.id;
+		document.getElementById(`tab-${next.id}`)?.focus();
+	}
 </script>
 
 
@@ -117,12 +127,18 @@
 
 	<!-- Tab Navigation -->
 	<nav class="tab-nav" aria-label="Inspector tabs">
-		<div class="tab-nav-inner">
+		<div class="tab-nav-inner" role="tablist" aria-label="Inspector tabs">
 			{#each TAB_ITEMS as tab}
 				<button
 					class="tab-btn"
 					class:active={activeTab === tab.id}
+					role="tab"
+					id={`tab-${tab.id}`}
+					aria-selected={activeTab === tab.id}
+					aria-controls={`panel-${tab.id}`}
+					tabindex={activeTab === tab.id ? 0 : -1}
 					onclick={() => (activeTab = tab.id)}
+					onkeydown={onTabKeydown}
 				>
 					<i class="fa-solid {tab.icon}" aria-hidden="true"></i>
 					{tab.label}
@@ -135,10 +151,10 @@
 	<main class="inspector-main">
 		<!-- Decode Tab -->
 		{#if activeTab === 'decode'}
-			<div class="tab-content">
+			<div class="tab-content" role="tabpanel" id="panel-decode" aria-labelledby="tab-decode">
 				<div>
 					<label for="decode-input" class="field-label">
-						Paste a VCP/I token or URI, CSM-1 code, or welfare signal
+						Paste a VCP/I token or URI, CSM-1 code (NANO, MICRO, or COMPACT), or welfare signal
 					</label>
 					<div class="input-col">
 						<textarea
@@ -146,6 +162,7 @@
 							class="text-input decode-textarea"
 							placeholder="e.g. family.safe.guide@1.2.0:SEC or N5+E+F or WC:🛑📊⚖️:2:..."
 							bind:value={decodeInput}
+							aria-describedby="decode-hint"
 							onkeydown={(e) => e.key === 'Enter' && !e.shiftKey && (e.preventDefault(), doDecode())}
 							rows="3"
 						></textarea>
@@ -154,6 +171,9 @@
 							Decode
 						</button>
 					</div>
+					<p id="decode-hint" class="field-hint">
+						Enter decodes · Shift+Enter adds a line (needed for a WC + AS welfare pair)
+					</p>
 				</div>
 
 				{#if decodeError}
@@ -166,10 +186,10 @@
 				{#if decodeResult?.type === 'token'}
 					{@const t = decodeResult.data}
 					<div class="result-section">
-						<h3 class="result-title">
+						<h2 class="result-title">
 							<i class="fa-solid fa-key" aria-hidden="true"></i>
 							VCP/I Token
-						</h3>
+						</h2>
 						<div class="glass-card result-card">
 							<!-- Syntax highlighted token -->
 							<div class="token-preview">
@@ -231,7 +251,7 @@
 										<td class="mono">{t.canonical}</td>
 									</tr>
 									<tr>
-										<td class="detail-key">URI</td>
+										<td class="detail-key">Registry URI (creed.space)</td>
 										<td class="mono">{t.uri}</td>
 									</tr>
 								</tbody>
@@ -243,10 +263,10 @@
 				{#if decodeResult?.type === 'csm1'}
 					{@const c = decodeResult.data}
 					<div class="result-section">
-						<h3 class="result-title">
+						<h2 class="result-title">
 							<i class="fa-solid fa-code" aria-hidden="true"></i>
 							CSM-1 Code
-						</h3>
+						</h2>
 						<div class="glass-card result-card">
 							<div class="token-preview">
 								<span class="token-domain">{c.persona.char}</span><span class="token-approach">{c.level}</span>
@@ -303,13 +323,82 @@
 						</div>
 					</div>
 				{/if}
+				{#if decodeResult?.type === 'csm1-compact'}
+					{@const c = decodeResult.data}
+					<div class="result-section">
+						<h2 class="result-title">
+							<i class="fa-solid fa-code" aria-hidden="true"></i>
+							CSM-1 COMPACT Code
+						</h2>
+						<div class="glass-card result-card">
+							<div class="token-preview">
+								<span class="token-sep">CS1|</span><span class="token-domain">{c.persona.name.toLowerCase()}</span><span class="token-sep">|</span><span class="token-approach">{c.level}</span><span class="token-sep">|</span><span class="token-path">{c.token.raw}</span><span class="token-sep">|</span>
+								{#each c.scopes as scope, i}
+									{#if i > 0}<span class="token-sep">,</span>{/if}<span class="token-role">{scope.char}</span>
+								{/each}
+							</div>
+
+							<table class="detail-table">
+								<tbody>
+									<tr>
+										<td class="detail-key">Persona</td>
+										<td>
+											<span class="token-domain">{c.persona.name}</span>
+											<span class="detail-note"> — {c.persona.description}</span>
+										</td>
+									</tr>
+									<tr>
+										<td class="detail-key">Level</td>
+										<td>
+											<span class="token-approach">{c.level}/5</span>
+											<span class="detail-note"> ({LEVEL_LABELS[c.level] ?? 'Unknown'})</span>
+											{#if c.isMaximum}
+												<span class="badge badge-danger">MAX</span>
+											{/if}
+										</td>
+									</tr>
+									<tr>
+										<td class="detail-key">Scopes</td>
+										<td>
+											{#if c.scopes.length === 0}
+												<span class="detail-note">(all scopes)</span>
+											{:else}
+												<div class="scope-tags">
+													{#each c.scopes as scope}
+														<span class="badge badge-success">{scope.name} ({scope.char})</span>
+													{/each}
+												</div>
+											{/if}
+										</td>
+									</tr>
+									<tr>
+										<td class="detail-key">VCP/I token</td>
+										<td class="mono">{c.token.full}</td>
+									</tr>
+									<tr>
+										<td class="detail-key">Token version</td>
+										<td class="token-version">{c.token.version ?? '(none)'}</td>
+									</tr>
+									<tr>
+										<td class="detail-key">Token namespace</td>
+										<td class="token-namespace">{c.token.namespace ?? '(none)'}</td>
+									</tr>
+									<tr>
+										<td class="detail-key">NANO equivalent</td>
+										<td class="mono">{c.encoded}</td>
+									</tr>
+								</tbody>
+							</table>
+						</div>
+					</div>
+				{/if}
 				{#if decodeResult?.type === 'welfare'}
 					{@const w = decodeResult.data}
 					<div class="result-section">
-						<h3 class="result-title">
+						<h2 class="result-title">
 							<i class="fa-solid fa-heart-pulse" aria-hidden="true"></i>
 							VCP/S Welfare Snapshot
-						</h3>
+						</h2>
 						<div class="glass-card result-card">
 							<div class="welfare-header">
 								<span class="welfare-type">Welfare Context and Agent State</span>
@@ -336,6 +425,14 @@
 											{/if}
 										</td>
 									</tr>
+									{#if w.context && w.context.unknownFlags.length > 0}
+										<tr>
+											<td class="detail-key">Skipped</td>
+											<td class="detail-note">
+												{w.context.unknownFlags.length} unrecognised flag symbol{w.context.unknownFlags.length === 1 ? '' : 's'}: {w.context.unknownFlags.join(' ')}
+											</td>
+										</tr>
+									{/if}
 									<tr>
 										<td class="detail-key">Attestation</td>
 										<td>{w.context ? `${w.context.attestationLevel}/2` : 'Undeclared'}</td>
@@ -362,6 +459,14 @@
 											{/if}
 										</td>
 									</tr>
+									{#if w.agentState && w.agentState.unknownDimensions.length > 0}
+										<tr>
+											<td class="detail-key">Skipped</td>
+											<td class="detail-note">
+												{w.agentState.unknownDimensions.length} unrecognised dimension symbol{w.agentState.unknownDimensions.length === 1 ? '' : 's'}: {w.agentState.unknownDimensions.join(' ')}
+											</td>
+										</tr>
+									{/if}
 								</tbody>
 							</table>
 						</div>
@@ -371,8 +476,8 @@
 
 		<!-- Encode Tab -->
 		{:else if activeTab === 'encode'}
-			<div class="tab-content">
-				<h3 class="section-title">Build a CSM-1 Code</h3>
+			<div class="tab-content" role="tabpanel" id="panel-encode" aria-labelledby="tab-encode">
+				<h2 class="section-title">Build a CSM-1 Code</h2>
 
 				<!-- Live Preview -->
 				<div class="preview-card">
@@ -397,6 +502,7 @@
 							<button
 								class="persona-btn"
 								class:active={selectedPersona === char}
+								aria-pressed={selectedPersona === char}
 								onclick={() => (selectedPersona = char)}
 							>
 								<div class="persona-char">{char}</div>
@@ -454,7 +560,7 @@
 				<!-- Namespace -->
 				<div class="field-group">
 					<label for="encode-namespace" class="field-label">
-						Namespace <span class="detail-note">(optional)</span>
+						Namespace <span class="detail-note">{selectedPersona === 'C' ? '(required for Custom)' : '(optional)'}</span>
 					</label>
 					<input
 						id="encode-namespace"
@@ -462,6 +568,8 @@
 						class="text-input"
 						style="text-transform: uppercase;"
 						placeholder="e.g. SEC, ELEM"
+						required={selectedPersona === 'C'}
+						aria-required={selectedPersona === 'C'}
 						bind:value={encodeNamespace}
 					/>
 				</div>
@@ -475,18 +583,20 @@
 						id="encode-version"
 						type="text"
 						class="text-input"
-						placeholder="e.g. 1.0.0"
+						placeholder="e.g. 1.0.0, latest, canary"
+						aria-describedby="encode-version-hint"
 						bind:value={encodeVersion}
 					/>
+					<p id="encode-version-hint" class="field-hint">semver (max 999.999.999), latest, or canary</p>
 				</div>
 			</div>
 
 		<!-- Capability Tab -->
 		{:else if activeTab === 'capability'}
-			<div class="tab-content">
-				<h3 class="section-title">VCP Capability Negotiation</h3>
+			<div class="tab-content" role="tabpanel" id="panel-capability" aria-labelledby="tab-capability">
+				<h2 class="section-title">VCP Capability Negotiation</h2>
 				<p class="section-desc">
-					Select supported extensions to simulate a VCP-Hello / VCP-Ack handshake (v3.1).
+					Select the extensions the client requests; the simulated server advertises all six at VCP 3.1, so the VCP-Ack shows dependency degradation rather than unsupported extensions.
 				</p>
 
 				<!-- Extension Selection -->
@@ -510,27 +620,27 @@
 
 				<!-- VCP-Hello -->
 				<div class="field-group">
-					<h4 class="field-label">
+					<h3 class="field-label">
 						<i class="fa-solid fa-arrow-right" aria-hidden="true"></i>
 						VCP-Hello (Client)
-					</h4>
+					</h3>
 					<pre class="code-block code-green">{JSON.stringify(helloMessage, null, 2)}</pre>
 				</div>
 
 				<!-- VCP-Ack -->
 				<div class="field-group">
-					<h4 class="field-label">
+					<h3 class="field-label">
 						<i class="fa-solid fa-arrow-left" aria-hidden="true"></i>
 						VCP-Ack (Server)
-					</h4>
+					</h3>
 					<pre class="code-block code-indigo">{JSON.stringify(ackMessage, null, 2)}</pre>
 				</div>
 			</div>
 
 		<!-- Layers Tab -->
 		{:else if activeTab === 'layers'}
-			<div class="tab-content">
-				<h3 class="section-title">Protocol Layers: {getLayerMnemonic()}</h3>
+			<div class="tab-content" role="tabpanel" id="panel-layers" aria-labelledby="tab-layers">
+				<h2 class="section-title">Protocol Layers: {getLayerMnemonic()}</h2>
 				<p class="section-desc">
 					The VCP six-layer stack, from identity through economic governance.
 				</p>
@@ -556,8 +666,8 @@
 
 		<!-- Examples Tab -->
 		{:else if activeTab === 'examples'}
-			<div class="tab-content">
-				<h3 class="section-title">Example Tokens and Codes</h3>
+			<div class="tab-content" role="tabpanel" id="panel-examples" aria-labelledby="tab-examples">
+				<h2 class="section-title">Example Tokens and Codes</h2>
 				<p class="section-desc">Click any example to load it into the Decode tab.</p>
 
 				<div class="examples-list">
@@ -573,7 +683,7 @@
 								</div>
 								<div class="example-meta">
 									<span class="badge {example.type === 'token' ? 'badge-primary' : example.type === 'welfare' ? 'badge-danger' : 'badge-success'}">
-										{example.type === 'token' ? 'VCP/I' : example.type === 'welfare' ? 'Welfare' : 'CSM-1'}
+										{example.type === 'token' ? 'VCP/I' : example.type === 'welfare' ? 'Welfare' : example.type === 'csm1-compact' ? 'CSM-1 COMPACT' : 'CSM-1'}
 									</span>
 									<code class="example-code">{example.type === 'welfare' ? example.value.split('\n')[0] : example.value}</code>
 								</div>

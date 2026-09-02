@@ -15,13 +15,14 @@
 
 ## What It Does
 
-An interactive web tool for exploring the [Value-Context Protocol (VCP)](https://github.com/Creed-Space/VCP-Spec). Four tabs:
+An interactive web tool for exploring the [Value-Context Protocol (VCP)](https://github.com/Creed-Space/VCP-Spec). Five tabs:
 
 | Tab | Description |
 |-----|-------------|
-| **Decode** | Paste any VCP token — get a layer-by-layer breakdown with syntax highlighting |
+| **Decode** | Paste a VCP/I token or `creed://` / `vcp://` URI, a CSM-1 code (NANO, MICRO, or COMPACT), or a WC/AS welfare snapshot — get a layer-by-layer breakdown with syntax highlighting |
 | **Encode** | Build a CSM-1 token interactively with live preview |
 | **Capability** | Simulate capability negotiation — select extensions, see VCP-Hello/VCP-Ack exchange |
+| **Layers** | The I-T-S-A-M-E six-layer stack and which layers the Inspector covers |
 | **Examples** | Pre-loaded tokens from real use cases drawn from the VCP spec |
 
 ## Tech Stack
@@ -55,17 +56,17 @@ npm run test:interop -- --sdk-root ../VCP-SDK --spec-root ../VCP-Spec
 ## Related
 
 - [VCP Specification](https://github.com/Creed-Space/VCP-Spec) — The protocol spec (v3.1)
-- [VCP SDK](https://github.com/Creed-Space/vcp-sdk) — Python, TypeScript, and Rust SDKs
-- [Creed Space](https://creedspace.com) — The project behind VCP
+- [VCP SDK](https://github.com/Creed-Space/VCP-SDK) — Python, TypeScript, and Rust SDKs
+- [Creed Space](https://creed.space) — The project behind VCP
 
 ## License
 
-MIT
+[MIT](./LICENSE)
 
 ---
 
 <div align="center">
 
-A **[Creed Space](https://creedspace.com)** project.
+A **[Creed Space](https://creed.space)** project.
 
 </div>

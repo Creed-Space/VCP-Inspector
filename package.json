@@ -2,7 +2,11 @@
   "name": "vcp-inspector",
   "version": "0.1.0",
   "private": true,
+  "license": "MIT",
   "type": "module",
+  "engines": {
+    "node": ">=22.18"
+  },
   "scripts": {
     "dev": "vite dev",
     "build": "vite build",

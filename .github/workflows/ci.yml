@@ -1,0 +1,46 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        node-version: ['22.x', '24.x']
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node-version }}
+          cache: npm
+      - run: npm ci
+      - run: npm run validate
+
+  interop:
+    # Cross-repository fixture gate; advisory until the sibling refs are pinned.
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          path: VCP-Inspector
+      - uses: actions/checkout@v4
+        with:
+          repository: Creed-Space/VCP-Spec
+          path: VCP-Spec
+      - uses: actions/checkout@v4
+        with:
+          repository: Creed-Space/VCP-SDK
+          path: VCP-SDK
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22.x'
+          cache: npm
+          cache-dependency-path: VCP-Inspector/package-lock.json
+      - run: npm ci
+        working-directory: VCP-Inspector
+      - run: npm run test:interop -- --sdk-root ../VCP-SDK --spec-root ../VCP-Spec
+        working-directory: VCP-Inspector

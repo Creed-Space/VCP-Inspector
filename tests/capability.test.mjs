@@ -175,6 +175,25 @@ test('dependency-sensitive capabilities disclose degraded operation honestly', (
 	assert.deepEqual(complete.capabilities['VCP-X-Intent'], { personal_signals: true });
 });
 
+test('additional core-feature entries must be booleans, matching the reference SDKs', () => {
+	const profile = {
+		supported_versions: ['3.1'],
+		extensions: {},
+		core_features: {
+			encryption: true,
+			injection_scanning: true,
+			revocation: true,
+			audit_chain: true,
+			context_opacity: true,
+			future_feature: { level: 2 }
+		}
+	};
+	assert.throws(
+		() => negotiateHandshake({ type: 'vcp-hello', version: '3.1', extensions: [] }, profile),
+		/core_features\.future_feature must be boolean/
+	);
+});
+
 test('explicit server profiles negotiate canonical capabilities without retaining caller state', () => {
 	const profile = {
 		supported_versions: ['3.1', '2.0', '3.1'],
@@ -189,7 +208,7 @@ test('explicit server profiles negotiate canonical capabilities without retainin
 			revocation: true,
 			audit_chain: false,
 			context_opacity: true,
-			future_feature: { level: 2 }
+			future_feature: true
 		},
 		server_id: 'server/fixture',
 		session_id: 'ses_fixture'
@@ -200,7 +219,6 @@ test('explicit server profiles negotiate canonical capabilities without retainin
 		extensions: ['VCP-X-Personal', 'VCP-X-Torch', 'VCP-X-Intent']
 	}, profile);
 	profile.extensions['VCP-X-Personal'].nested.mode = 'mutated';
-	profile.core_features.future_feature.level = 99;
 	assert.deepEqual(ack, {
 		type: 'vcp-ack',
 		version: '3.1',
@@ -217,14 +235,13 @@ test('explicit server profiles negotiate canonical capabilities without retainin
 			revocation: true,
 			audit_chain: false,
 			context_opacity: true,
-			future_feature: { level: 2 }
+			future_feature: true
 		},
 		server_id: 'server/fixture',
 		session_id: 'ses_fixture'
 	});
 	assert.ok(Object.isFrozen(ack));
 	assert.ok(Object.isFrozen(ack.capabilities['VCP-X-Personal'].nested));
-	assert.ok(Object.isFrozen(ack.core_features.future_feature));
 
 	const { server_id: _serverId, session_id: _sessionId, ...profileWithoutIdentifiers } = profile;
 	const noIdentifiers = negotiateHandshake(

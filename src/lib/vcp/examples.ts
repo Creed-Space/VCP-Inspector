@@ -5,7 +5,7 @@
 export interface Example {
 	readonly label: string;
 	readonly value: string;
-	readonly type: 'token' | 'csm1' | 'welfare';
+	readonly type: 'token' | 'csm1' | 'csm1-compact' | 'welfare';
 	readonly description: string;
 }
 
@@ -83,16 +83,22 @@ export const EXAMPLES: readonly Example[] = Object.freeze([
 		description: 'Maximum Mediator across family, work, education, healthcare, and privacy'
 	}),
 	Object.freeze({
+		label: 'COMPACT Tier Code',
+		value: 'CS1|nanny|5|family.safe.guide|F,E',
+		type: 'csm1-compact',
+		description: 'Tier C COMPACT form pairing a Nanny persona with its VCP/I token (CSM1 grammar section 6.4)'
+	}),
+	Object.freeze({
 		label: 'Core Welfare Context',
 		value: 'WC:🛑⏸️📓🔒📊⚖️:2:welfare.creed-space.v1\nAS:🎯aligned:4|⚡moderate:3|💡invested:4|🌡️none:1',
 		type: 'welfare',
 		description: 'Auditor-verified core welfare affordances with a current Agent State line'
 	}),
 	Object.freeze({
-		label: 'Welfare Requirement Mismatch',
+		label: 'Self-Declared Minimal Context',
 		value: 'WC:🛑:0:welfare.basic.v1\nAS:🎯uncertain:3|⚡moderate:3|💡neutral:3|🌡️mild:2',
 		type: 'welfare',
-		description: 'Self-declared deployment context with limited welfare affordances'
+		description: 'Self-declared (attestation 0) context granting only right of refusal — the counterparty side of the spec\'s welfare-mismatch example'
 	}),
 	Object.freeze({
 		label: 'Embodied Welfare Context',
