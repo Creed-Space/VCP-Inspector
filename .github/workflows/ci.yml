@@ -20,7 +20,9 @@ jobs:
       - run: npm run validate
 
   interop:
-    # Cross-repository fixture gate; advisory until the sibling refs are pinned.
+    # Cross-repository fixture gate against the sibling mains. Advisory
+    # (continue-on-error) for now; drop continue-on-error and make it blocking
+    # once VCP-Spec and VCP-SDK main carry the 2026-09-02 polish.
     runs-on: ubuntu-latest
     continue-on-error: true
     steps:
@@ -30,10 +32,12 @@ jobs:
       - uses: actions/checkout@v4
         with:
           repository: Creed-Space/VCP-Spec
+          ref: main
           path: VCP-Spec
       - uses: actions/checkout@v4
         with:
           repository: Creed-Space/VCP-SDK
+          ref: main
           path: VCP-SDK
       - uses: actions/setup-node@v4
         with:

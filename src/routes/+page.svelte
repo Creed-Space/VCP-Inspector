@@ -4,6 +4,7 @@
 	import { EXAMPLES, type Example } from '$lib/vcp/examples';
 	import { decodeInspectorInput, type InspectorDecodeResult } from '$lib/vcp/inspector';
 	import { VCP_LAYERS, getLayerMnemonic } from '$lib/vcp/layers';
+	import { INSPECTOR_VERSION } from '$lib/version';
 
 
 	// Tab state
@@ -697,7 +698,7 @@
 
 	<!-- Footer -->
 	<footer class="inspector-footer">
-		VCP Inspector v0.2.0 &mdash; Value-Context Protocol v3.1 &mdash;
+		VCP Inspector v{INSPECTOR_VERSION} &mdash; Value-Context Protocol v3.1 &mdash;
 		<a href="https://creed.space">Creed Space</a>
 	</footer>
 </div>

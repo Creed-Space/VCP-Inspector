@@ -1,5 +1,6 @@
 /** VCP v3.1 capability negotiation simulator, including section 3.2 invariants. */
 
+import { INSPECTOR_VERSION } from '../version.ts';
 import { parseToken } from './token-parser.ts';
 
 export interface VCPExtension {
@@ -349,7 +350,7 @@ export function generateHello(selectedExtensions: unknown): VCPHello {
 		extensions: snapshotExtensions(selectedExtensions),
 		identity: null,
 		min_version: '1.0',
-		client_id: 'vcp-inspector/0.2.0'
+		client_id: `vcp-inspector/${INSPECTOR_VERSION}`
 	});
 	serializeWire(hello, 'VCP-Hello');
 	return hello;
@@ -432,7 +433,7 @@ export function generateAck(hello: unknown): VCPAck | VCPError {
 		supported_versions: SERVER_VERSIONS,
 		extensions: Object.fromEntries(EXTENSIONS.map((extension) => [extension.id, {}])),
 		core_features: CORE_FEATURES,
-		server_id: 'vcp-inspector/0.2.0',
+		server_id: `vcp-inspector/${INSPECTOR_VERSION}`,
 		session_id: generateSessionId()
 	});
 }

@@ -1,7 +1,13 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
+import { createRequire } from 'node:module';
+
 import { EXTENSIONS, generateAck, generateHello, negotiateHandshake } from '../src/lib/vcp/capability.ts';
+import { INSPECTOR_VERSION } from '../src/lib/version.ts';
+
+const require = createRequire(import.meta.url);
+const PACKAGE_VERSION = require('../package.json').version;
 
 const IDS = [
 	'VCP-X-Personal',
@@ -23,6 +29,11 @@ test('extension registry mirrors the six local VCP-Spec extension directories', 
 	}
 });
 
+test('INSPECTOR_VERSION is single-sourced from package.json', () => {
+	assert.match(PACKAGE_VERSION, /^\d+\.\d+\.\d+$/);
+	assert.equal(INSPECTOR_VERSION, PACKAGE_VERSION);
+});
+
 test('generated Hello uses the VEP-0002 wire shape and snapshots caller state', () => {
 	const selected = [IDS[0], IDS[5]];
 	const hello = generateHello(selected);
@@ -33,7 +44,7 @@ test('generated Hello uses the VEP-0002 wire shape and snapshots caller state', 
 		extensions: [IDS[0], IDS[5]],
 		identity: null,
 		min_version: '1.0',
-		client_id: 'vcp-inspector/0.2.0'
+		client_id: `vcp-inspector/${INSPECTOR_VERSION}`
 	});
 	assert.ok(Object.isFrozen(hello));
 	assert.ok(Object.isFrozen(hello.extensions));
