@@ -116,7 +116,10 @@
 						<i class="fa-solid fa-magnifying-glass" aria-hidden="true"></i>
 						VCP Inspector
 					</h1>
-					<p class="header-subtitle">Debug VCP/I tokens and URIs, CSM-1 codes, and capability negotiation</p>
+					<p class="header-subtitle">
+						Inspect VCP/I tokens and URIs, CSM-1 codes, welfare signals, Agent Runtime artifacts, and
+						capability negotiation
+					</p>
 				</div>
 			</div>
 			<a href="https://valuecontextprotocol.org/docs" class="docs-link">
@@ -155,13 +158,14 @@
 			<div class="tab-content" role="tabpanel" id="panel-decode" aria-labelledby="tab-decode">
 				<div>
 					<label for="decode-input" class="field-label">
-						Paste a VCP/I token or URI, CSM-1 code (NANO, MICRO, or COMPACT), or welfare signal
+						Paste a VCP/I token or URI, CSM-1 code (NANO, MICRO, or COMPACT), welfare signal, or Agent
+						Runtime JSON artifact
 					</label>
 					<div class="input-col">
 						<textarea
 							id="decode-input"
 							class="text-input decode-textarea"
-							placeholder="e.g. family.safe.guide@1.2.0:SEC or N5+E+F or WC:🛑📊⚖️:2:..."
+							placeholder="e.g. family.safe.guide@1.2.0:SEC, N5+E+F, WC:🛑📊⚖️:2:..., or a situation_view JSON object"
 							bind:value={decodeInput}
 							aria-describedby="decode-hint"
 							onkeydown={(e) => e.key === 'Enter' && !e.shiftKey && (e.preventDefault(), doDecode())}
@@ -473,6 +477,69 @@
 						</div>
 					</div>
 				{/if}
+				{#if decodeResult?.type === 'agent-runtime'}
+					{@const artifact = decodeResult.data}
+					<div class="result-section">
+						<h2 class="result-title">
+							<i class="fa-solid fa-gauge-high" aria-hidden="true"></i>
+							Agent Runtime Profile Artifact
+						</h2>
+						<div class="glass-card result-card">
+							<div class="runtime-header">
+								<div>
+									<span class="runtime-kind">{artifact.kind}</span>
+									<p class="runtime-summary">{artifact.summary}</p>
+								</div>
+								<span class="badge badge-primary">v{artifact.version}</span>
+							</div>
+							<table class="detail-table">
+								<tbody>
+									<tr><td class="detail-key">Identity</td><td class="mono">{artifact.title}</td></tr>
+									<tr><td class="detail-key">State</td><td>{artifact.status}</td></tr>
+									<tr><td class="detail-key">Effect class</td><td>{artifact.effectClass ?? 'Declared in nested result'}</td></tr>
+									<tr><td class="detail-key">Authority class</td><td>{artifact.authorityClass ?? 'Declared in nested result'}</td></tr>
+									<tr><td class="detail-key">Evidence outputs</td><td>{artifact.evidenceRefs.length}</td></tr>
+									<tr><td class="detail-key">Digest</td><td class="mono digest-cell">{artifact.digest ?? 'Contained in metadata'}</td></tr>
+								</tbody>
+							</table>
+							<section class="runtime-assurance" aria-labelledby="runtime-assurance-title">
+								<h4 id="runtime-assurance-title">Independent assurance axes</h4>
+								<div class="assurance-vector">
+									{#each artifact.assurance as axis}
+										<div class="assurance-axis">
+											<strong>{axis.axis}</strong>
+											<span class="badge {axis.status === 'passed' ? 'badge-success' : 'badge-primary'}">{axis.status}</span>
+											<p>{axis.detail}</p>
+										</div>
+									{/each}
+								</div>
+							</section>
+							{#if artifact.lineageRefs.length > 0}
+								<details class="runtime-lineage" open>
+									<summary>Lineage references ({artifact.lineageRefs.length})</summary>
+									<ul>
+										{#each artifact.lineageRefs as reference}<li class="mono">{reference}</li>{/each}
+									</ul>
+								</details>
+							{/if}
+							{#if artifact.safeNext.length > 0}
+								<div class="runtime-next">
+									<strong>Safe next transitions</strong>
+									<ul>
+										{#each artifact.safeNext as transition}<li>{transition}</li>{/each}
+									</ul>
+								</div>
+							{/if}
+							<details class="runtime-raw">
+								<summary>Validated JSON</summary>
+								<pre class="code-block code-indigo">{JSON.stringify(artifact.raw, null, 2)}</pre>
+							</details>
+							<p class="validation-note">
+								This view enforces the profile's closed root contract and safety-bearing fields. The normative JSON Schema remains the full conformance authority.
+							</p>
+						</div>
+					</div>
+				{/if}
 			</div>
 
 		<!-- Encode Tab -->
@@ -684,7 +751,15 @@
 								</div>
 								<div class="example-meta">
 									<span class="badge {example.type === 'token' ? 'badge-primary' : example.type === 'welfare' ? 'badge-danger' : 'badge-success'}">
-										{example.type === 'token' ? 'VCP/I' : example.type === 'welfare' ? 'Welfare' : example.type === 'csm1-compact' ? 'CSM-1 COMPACT' : 'CSM-1'}
+										{example.type === 'token'
+											? 'VCP/I'
+											: example.type === 'welfare'
+												? 'Welfare'
+												: example.type === 'agent-runtime'
+													? 'Agent Runtime'
+													: example.type === 'csm1-compact'
+														? 'CSM-1 COMPACT'
+														: 'CSM-1'}
 									</span>
 									<code class="example-code">{example.type === 'welfare' ? example.value.split('\n')[0] : example.value}</code>
 								</div>
@@ -1012,7 +1087,7 @@
 		padding: 0.5rem 0;
 	}
 
-	.detail-key {
+	.detail-table .detail-key {
 		padding-right: 1rem;
 		font-weight: 500;
 		color: var(--color-vcp-subtle);
@@ -1345,6 +1420,96 @@
 	.welfare-type-cell {
 		font-family: ui-monospace, SFMono-Regular, 'SF Mono', Menlo, monospace;
 		color: #f472b6;
+	}
+
+	.runtime-header {
+		display: flex;
+		align-items: flex-start;
+		justify-content: space-between;
+		gap: 1rem;
+		padding-bottom: 1rem;
+		margin-bottom: 1rem;
+		border-bottom: 1px solid var(--color-vcp-border);
+	}
+
+	.runtime-kind {
+		font-family: ui-monospace, SFMono-Regular, 'SF Mono', Menlo, monospace;
+		font-size: 1.125rem;
+		font-weight: 600;
+		color: #818cf8;
+	}
+
+	.runtime-summary,
+	.validation-note {
+		margin-top: 0.35rem;
+		font-size: 0.8125rem;
+		line-height: 1.55;
+		color: var(--color-vcp-subtle);
+	}
+
+	.runtime-raw {
+		margin-top: 1rem;
+		color: var(--color-vcp-muted);
+		font-size: 0.8125rem;
+	}
+
+	.runtime-raw summary {
+		cursor: pointer;
+		margin-bottom: 0.75rem;
+	}
+
+	.digest-cell {
+		word-break: break-all;
+	}
+
+	.runtime-assurance {
+		margin-top: 1rem;
+	}
+
+	.runtime-assurance h4 {
+		margin-bottom: 0.75rem;
+		font-size: 0.875rem;
+		color: var(--color-vcp-muted);
+	}
+
+	.assurance-vector {
+		display: grid;
+		grid-template-columns: repeat(auto-fit, minmax(12rem, 1fr));
+		gap: 0.75rem;
+	}
+
+	.assurance-axis {
+		padding: 0.75rem;
+		border: 1px solid var(--color-vcp-border);
+		border-radius: 8px;
+	}
+
+	.assurance-axis strong {
+		margin-right: 0.5rem;
+		text-transform: capitalize;
+	}
+
+	.assurance-axis p {
+		margin-top: 0.5rem;
+		font-size: 0.75rem;
+		color: var(--color-vcp-subtle);
+	}
+
+	.runtime-lineage,
+	.runtime-next {
+		margin-top: 1rem;
+		padding: 0.75rem;
+		border: 1px solid var(--color-vcp-border);
+		border-radius: 8px;
+	}
+
+	.runtime-lineage ul,
+	.runtime-next ul {
+		margin: 0.75rem 0 0 1rem;
+	}
+
+	.runtime-lineage li {
+		overflow-wrap: anywhere;
 	}
 
 	/* Layers stack */

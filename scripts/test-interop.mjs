@@ -298,7 +298,11 @@ function checkHandshakeSchema(schema, specExamples, server) {
 	assert.equal([...valid.supported, ...valid.unsupported].includes('invalid-extension'), false);
 	const reversed = negotiateHandshake(specExamples.invalidVersionRange, server);
 	assert.equal(reversed.type, 'vcp-error', 'Reversed client range is accepted');
-	assert.throws(() => negotiateHandshake(specExamples.invalidLeadingZero, server));
+	// The leading-zero version is schema-invalid (asserted above) but a receiver must still
+	// answer with one canonical vcp-error rather than a transport fault, per section 4.1.
+	const leadingZero = negotiateHandshake(specExamples.invalidLeadingZero, server);
+	assert.equal(leadingZero.type, 'vcp-error', 'Leading-zero version is accepted');
+	assert.equal(leadingZero.code, 'VERSION_UNSUPPORTED', 'Leading-zero version is not a version error');
 
 	const maxItems = hello.properties.extensions.maxItems;
 	const maxRequestLength = request.maxLength;

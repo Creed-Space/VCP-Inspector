@@ -327,10 +327,21 @@ test('explicit server profiles accept exact schema ceilings and reject every mal
 });
 
 test('version failures are schema-valid VCP errors with immutable supported versions', async (t) => {
+	// An unparseable bound is a version mismatch, not a transport fault: section 6.1 parses the
+	// range before intersecting it, and section 4.1 requires exactly one vcp-error per failed
+	// handshake. Matches the VCP-SDK conformance case malformed-client-version.
 	for (const hello of [
 		{ type: 'vcp-hello', version: '4.0', min_version: '3.2' },
 		{ type: 'vcp-hello', version: '2.0', min_version: '3.0' },
-		{ type: 'vcp-hello', version: '0.9' }
+		{ type: 'vcp-hello', version: '0.9' },
+		{ type: 'vcp-hello', version: '3.x' },
+		{ type: 'vcp-hello', version: 3.1 },
+		{ type: 'vcp-hello', version: '3.1\n' },
+		{ type: 'vcp-hello', version: '3.1', min_version: '1' },
+		{ type: 'vcp-hello', version: '3.1', min_version: null },
+		{ type: 'vcp-hello', version: '03.1' },
+		{ type: 'vcp-hello', version: '3.01' },
+		{ type: 'vcp-hello', version: '1234567890.1' }
 	]) {
 		await t.test(JSON.stringify(hello), () => {
 			const result = generateAck(hello);
@@ -377,13 +388,6 @@ test('Ack rejects malformed schema fields, ambiguous extension lists, and wire e
 		[],
 		{},
 		{ type: 'VCP-Hello', version: '3.1' },
-		{ type: 'vcp-hello', version: 3.1 },
-		{ type: 'vcp-hello', version: '3.1\n' },
-		{ type: 'vcp-hello', version: '3.1', min_version: '1' },
-		{ type: 'vcp-hello', version: '3.1', min_version: null },
-		{ type: 'vcp-hello', version: '03.1' },
-		{ type: 'vcp-hello', version: '3.01' },
-		{ type: 'vcp-hello', version: '1234567890.1' },
 		{ type: 'vcp-hello', version: '3.1', client_id: 1 },
 		{ type: 'vcp-hello', version: '3.1', client_id: '' },
 		{ type: 'vcp-hello', version: '3.1', client_id: 'a'.repeat(257) },

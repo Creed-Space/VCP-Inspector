@@ -5,11 +5,143 @@
 export interface Example {
 	readonly label: string;
 	readonly value: string;
-	readonly type: 'token' | 'csm1' | 'csm1-compact' | 'welfare';
+	readonly type: 'token' | 'csm1' | 'csm1-compact' | 'welfare' | 'agent-runtime';
 	readonly description: string;
 }
 
 export const EXAMPLES: readonly Example[] = Object.freeze([
+	Object.freeze({
+		label: 'Controlled Action Intent',
+		value: JSON.stringify(
+			{
+				kind: 'action_intent',
+				version: '0.1.0',
+				intent_id: 'intent.local.record-setting',
+				run_ref: 'vcp:artifact:run:run.local.controlled',
+				step_ref: 'vcp:artifact:step:step.local.write',
+				affordance_ref:
+					'vcp:artifact:affordance:affordance.local.record-setting',
+				arguments_digest:
+					'sha256:1111111111111111111111111111111111111111111111111111111111111111',
+				destination: 'local://reference/settings/theme',
+				context_digest:
+					'sha256:2222222222222222222222222222222222222222222222222222222222222222',
+				policy_digest:
+					'sha256:3333333333333333333333333333333333333333333333333333333333333333',
+				descriptor_digest:
+					'sha256:4444444444444444444444444444444444444444444444444444444444444444',
+				requested_at: '2026-09-01T00:00:00Z',
+				schema_digest:
+					'sha256:5555555555555555555555555555555555555555555555555555555555555555',
+				effect_class: 'reversible_write',
+				situation_digest:
+					'sha256:6666666666666666666666666666666666666666666666666666666666666666',
+				expected_postconditions: ['setting value equals requested value'],
+				resource_ceiling: {
+					wall_time_ms: 1000,
+					tokens: 1000,
+					external_calls: 0,
+					money_minor: 0,
+					human_interruptions: 0,
+					reserve_fraction: 0.25,
+					model_calls: 0,
+					local_compute_ms: 100,
+					bytes: 65536,
+					sensitive_egress_bytes: 0,
+					privacy_units: 0,
+					risk_units: 1,
+					welfare_load_units: 0,
+				},
+				idempotency_scope: 'run.local.controlled/step.local.write',
+				requested_authority: 'local-reference-write',
+				digest:
+					'sha256:7777777777777777777777777777777777777777777777777777777777777777',
+			},
+			null,
+			2,
+		),
+		type: 'agent-runtime',
+		description: 'Exact preflight binding for a reversible controlled action',
+	}),
+	Object.freeze({
+		label: 'Accretion Candidate',
+		value: JSON.stringify(
+			{
+				kind: 'accretion_candidate',
+				version: '0.1.0',
+				candidate_id: 'candidate.local.procedure',
+				candidate_kind: 'procedure',
+				content: {
+					steps: ['validate', 'prove'],
+				},
+				scope: ['tenant:local', 'project:vcp'],
+				provenance_refs: ['vcp:artifact:capsule:capsule.local.1'],
+				validation_status: 'passed',
+				review_required: false,
+				expires_at: '2026-10-01T00:00:00Z',
+				source_run_ref: 'vcp:artifact:run:run.local.controlled',
+				supporting_evidence_refs: [
+					'vcp:artifact:evidence:evidence.local.proof',
+				],
+				contradicting_evidence_refs: [],
+				sensitivity: 'internal',
+				confidence: 1.0,
+				invalidation_triggers: ['schema digest changes'],
+				revalidation: 'repeat deterministic local validation',
+				promotion_policy: 'automatic-low-risk-local-procedure',
+				expected_utility: 0.5,
+				rollback: 'revoke promoted asset and invalidate future retrieval',
+				quarantine_status: 'not_required',
+				digest:
+					'sha256:8888888888888888888888888888888888888888888888888888888888888888',
+				dependency_digest:
+					'sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd',
+			},
+			null,
+			2,
+		),
+		type: 'agent-runtime',
+		description:
+			'Validated, dependency-bound learning candidate awaiting policy-governed promotion',
+	}),
+	Object.freeze({
+		label: 'Agent Runtime Situation View',
+		value: JSON.stringify(
+			{
+				kind: 'situation_view',
+				version: '0.1.0',
+				situation_id: 'situation.local.release',
+				goal: 'Determine whether the release candidate has current integrity evidence',
+				principal_ref: 'vcp:artifact:principal:local-observer',
+				known_claim_refs: ['vcp:artifact:claim:bundle-integrity'],
+				unknowns: ['deployment status'],
+				conflict_refs: [],
+				normative_context_ref: 'vcp:artifact:normative:local-observe',
+				authority_refs: ['vcp:artifact:authority:local-read'],
+				budget: {
+					wall_time_ms: 1000,
+					tokens: 2000,
+					external_calls: 0,
+					money_minor: 0,
+					human_interruptions: 0,
+					reserve_fraction: 0.2,
+				},
+				active_work_refs: [],
+				control_operations: [],
+				affordance_refs: ['vcp:artifact:affordance:verify-bundle'],
+				omissions: [],
+				as_of: '2026-08-31T12:00:00Z',
+				cursor: 'cursor.local.1',
+				dependency_digest: `sha256:${'0'.repeat(64)}`,
+				digest: `sha256:${'1'.repeat(64)}`,
+			},
+			null,
+			2,
+		),
+		type: 'agent-runtime',
+		description:
+			'Bounded observe profile orientation with explicit unknowns, authority, budget, and affordances',
+	}),
 	Object.freeze({
 		label: 'Family Safety Guide',
 		value: 'family.safe.guide',

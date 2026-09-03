@@ -20,11 +20,9 @@ jobs:
       - run: npm run validate
 
   interop:
-    # Cross-repository fixture gate against the sibling mains. Advisory
-    # (continue-on-error) for now; drop continue-on-error and make it blocking
-    # once VCP-Spec and VCP-SDK main carry the 2026-09-02 polish.
+    # Blocking cross-repository fixture gate against the sibling mains, which now
+    # carry the 2026-09-02 polish.
     runs-on: ubuntu-latest
-    continue-on-error: true
     steps:
       - uses: actions/checkout@v4
         with:
