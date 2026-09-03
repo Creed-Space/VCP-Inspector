@@ -4,8 +4,8 @@
  * Token format (ABNF from spec):
  *   token = segment 2*("." segment) ["@" version] [":" namespace]
  *   segment = ALPHA *(ALPHA / DIGIT / "-")
- *   version = 1*DIGIT "." 1*DIGIT "." 1*DIGIT
- *   namespace = UPALPHA *(UPALPHA / DIGIT)
+ *   version = ["^" / "~"] semver / "latest" / "canary"
+ *   namespace = UPALPHA *31(UPALPHA / DIGIT)
  *
  * Minimum 3 segments, max 10.
  *
@@ -35,10 +35,10 @@ export interface TokenError {
 }
 
 const SEGMENT_PATTERN = /^[a-z][a-z0-9-]*$/;
-const VERSION_PATTERN = /^\d+\.\d+\.\d+$/;
-const NAMESPACE_PATTERN = /^[A-Z][A-Z0-9]*$/;
+const VERSION_PATTERN = /^(?:[\^~]?\d{1,5}\.\d{1,5}\.\d{1,5}(?:-[a-zA-Z0-9.-]+)?|latest|canary)$/;
+const NAMESPACE_PATTERN = /^[A-Z][A-Z0-9]{0,31}$/;
 const TOKEN_PATTERN =
-	/^(?<path>[a-z][a-z0-9-]*(?:\.[a-z][a-z0-9-]*){2,})(?:@(?<version>\d+\.\d+\.\d+))?(?::(?<namespace>[A-Z][A-Z0-9]*))?$/;
+	/^(?<path>[a-z][a-z0-9-]{0,31}(?:\.[a-z][a-z0-9-]{0,31}){2,9})(?:@(?<version>[\^~]?\d{1,5}\.\d{1,5}\.\d{1,5}(?:-[a-zA-Z0-9.-]+)?|latest|canary))?(?::(?<namespace>[A-Z][A-Z0-9]{0,31}))?$/;
 
 const MAX_LENGTH = 256;
 const MAX_SEGMENT_LENGTH = 32;

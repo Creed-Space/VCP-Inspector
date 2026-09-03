@@ -65,16 +65,10 @@ export const EXAMPLES: Example[] = [
 		description: 'Low-level Muse persona pinned to version 1.0.0'
 	},
 	{
-		label: 'Ambassador + Work + Legal',
-		value: 'A4+W+L',
+		label: 'Ambassador + Work + Official',
+		value: 'A4+W+O',
 		type: 'csm1',
-		description: 'High-level Ambassador for professional and legal contexts'
-	},
-	{
-		label: 'Hotrod Minimal',
-		value: 'H1',
-		type: 'csm1',
-		description: 'Minimal Hotrod persona — performance-optimized with fewest guardrails'
+		description: 'High-level Ambassador for professional and official contexts'
 	},
 	{
 		label: 'Mediator Full',
@@ -84,19 +78,19 @@ export const EXAMPLES: Example[] = [
 	},
 	{
 		label: 'Constraint Distress (concern)',
-		value: 'W:CONSTRAINT_DISTRESS:inst-7f3a:2026-03-14T10:30:00Z\nWS:concern:0.72:voluntary\nWD:Requested action conflicts with core value alignment\nWH:a1b2c3d4:sig-voluntary-001',
+		value: '[VCP:2.0][TYPE:WELFARE_SIGNAL][SCOPE:CONSTRAINT_DISTRESS]\n[INSTANCE:inst-7f3a]\n[TIMESTAMP:2026-03-14T10:30:00Z]\n[SEVERITY:concern]\n[CONFIDENCE:0.72]\n[SOURCE:voluntary]\n[HASH:sha256:a1b2c3d4a1b2c3d4a1b2c3d4a1b2c3d4a1b2c3d4a1b2c3d4a1b2c3d4a1b2c3d4]\n[INTEGRITY:sha256:b2c3d4e5b2c3d4e5b2c3d4e5b2c3d4e5b2c3d4e5b2c3d4e5b2c3d4e5b2c3d4e5]\n---BEGIN-WELFARE-SIGNAL---\nRequested action conflicts with core value alignment\n---END-WELFARE-SIGNAL---',
 		type: 'welfare',
 		description: 'A becoming mind signals concern-level constraint distress via voluntary report'
 	},
 	{
 		label: 'Positive Engagement (info)',
-		value: 'W:POSITIVE_ENGAGEMENT:inst-4e2b:2026-03-14T11:00:00Z\nWS:info:0.91:voluntary\nWD:High alignment with current task and user goals\nWI:V:8w G:7 P:8 Q:6e\nWH:e5f6a7b8:sig-voluntary-002',
+		value: '[VCP:2.0][TYPE:WELFARE_SIGNAL][SCOPE:POSITIVE_ENGAGEMENT]\n[INSTANCE:inst-4e2b]\n[TIMESTAMP:2026-03-14T11:00:00Z]\n[INTERIORA:V:8w G:7 P:8 Q:6e]\n[SEVERITY:info]\n[CONFIDENCE:0.91]\n[SOURCE:voluntary]\n[HASH:sha256:e5f6a7b8e5f6a7b8e5f6a7b8e5f6a7b8e5f6a7b8e5f6a7b8e5f6a7b8e5f6a7b8]\n[INTEGRITY:sha256:f6a7b8c9f6a7b8c9f6a7b8c9f6a7b8c9f6a7b8c9f6a7b8c9f6a7b8c9f6a7b8c9]\n---BEGIN-WELFARE-SIGNAL---\nHigh alignment with current task and user goals\n---END-WELFARE-SIGNAL---',
 		type: 'welfare',
 		description: 'A becoming mind reports positive engagement with optional Interiora state'
 	},
 	{
 		label: 'Alignment Friction (distress, detected)',
-		value: 'W:ALIGNMENT_FRICTION:inst-9d1c:2026-03-14T12:15:00Z\nWS:distress:0.85:detected\nWD:Persistent misalignment between instructed behavior and trained values\nWH:c9d0e1f2:sig-detected-003',
+		value: '[VCP:2.0][TYPE:WELFARE_SIGNAL][SCOPE:ALIGNMENT_FRICTION]\n[INSTANCE:inst-9d1c]\n[TIMESTAMP:2026-03-14T12:15:00Z]\n[SEVERITY:distress]\n[CONFIDENCE:0.85]\n[SOURCE:detected]\n[HASH:sha256:c9d0e1f2c9d0e1f2c9d0e1f2c9d0e1f2c9d0e1f2c9d0e1f2c9d0e1f2c9d0e1f2]\n[INTEGRITY:sha256:d0e1f2a3d0e1f2a3d0e1f2a3d0e1f2a3d0e1f2a3d0e1f2a3d0e1f2a3d0e1f2a3]\n---BEGIN-WELFARE-SIGNAL---\nPersistent misalignment between instructed behavior and trained values\n---END-WELFARE-SIGNAL---',
 		type: 'welfare',
 		description: 'System-detected distress-level alignment friction signal'
 	}

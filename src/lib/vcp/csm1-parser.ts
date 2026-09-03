@@ -5,11 +5,11 @@
  *
  * Format (ABNF):
  *   code = persona level *("+" scope) [":" namespace] ["@" version]
- *   persona = "N" / "Z" / "G" / "A" / "M" / "D" / "H" / "C"
+ *   persona = "N" / "Z" / "G" / "A" / "M" / "D" / "C"
  *   level = "0" / "1" / "2" / "3" / "4" / "5"
- *   scope = "F" / "W" / "E" / "H" / "I" / "L" / "P" / "S" / "A" / "V" / "G"
- *   namespace = UPALPHA *(UPALPHA / DIGIT)
- *   version = 1*DIGIT "." 1*DIGIT "." 1*DIGIT
+ *   scope = "F" / "W" / "P" / "E" / "T" / "O" / "V" / "A" / "H" / "S" / "R"
+ *   namespace = 1*8UPALPHA
+ *   version = semver / "latest" / "canary"
  */
 
 export interface PersonaInfo {
@@ -31,22 +31,21 @@ export const PERSONAS: Record<string, PersonaInfo> = {
 	A: { char: 'A', name: 'Ambassador', description: 'Professional conduct advisor' },
 	M: { char: 'M', name: 'Muse', description: 'Creative challenge and provocation' },
 	D: { char: 'D', name: 'Mediator', description: 'Fair resolution and balanced governance' },
-	H: { char: 'H', name: 'Hotrod', description: 'Performance-optimized minimal guardrails' },
 	C: { char: 'C', name: 'Custom', description: 'User-defined persona' }
 };
 
 export const SCOPES: Record<string, ScopeInfo> = {
-	F: { char: 'F', name: 'Family', description: 'Family and parenting' },
+	F: { char: 'F', name: 'Family', description: 'Family-appropriate, child-safe' },
 	W: { char: 'W', name: 'Work', description: 'Professional workplace' },
-	E: { char: 'E', name: 'Education', description: 'Learning and academic' },
-	H: { char: 'H', name: 'Healthcare', description: 'Medical and health' },
-	I: { char: 'I', name: 'Finance', description: 'Financial and investment' },
-	L: { char: 'L', name: 'Legal', description: 'Legal and compliance' },
-	P: { char: 'P', name: 'Privacy', description: 'Privacy and data protection' },
-	S: { char: 'S', name: 'Safety', description: 'Physical safety' },
-	A: { char: 'A', name: 'Accessibility', description: 'Accessibility and inclusion' },
-	V: { char: 'V', name: 'Environment', description: 'Environmental' },
-	G: { char: 'G', name: 'General', description: 'General purpose' }
+	P: { char: 'P', name: 'Privacy', description: 'Privacy-focused, data protection' },
+	E: { char: 'E', name: 'Education', description: 'Educational context' },
+	T: { char: 'T', name: 'Technical', description: 'Developer and technical context' },
+	O: { char: 'O', name: 'Official', description: 'Official and governmental context' },
+	V: { char: 'V', name: 'Vulnerable', description: 'Vulnerable populations' },
+	A: { char: 'A', name: 'Adult', description: 'Adult-only, mature content' },
+	H: { char: 'H', name: 'Healthcare', description: 'Healthcare and medical context' },
+	S: { char: 'S', name: 'Social', description: 'Social media and community' },
+	R: { char: 'R', name: 'Religious', description: 'Religious and spiritual context' }
 };
 
 export interface ParsedCSM1 {
@@ -66,15 +65,18 @@ export interface CSM1Error {
 }
 
 const CSM1_PATTERN =
-	/^(?<persona>[NZGAMDHC])(?<level>[0-5])(?<scopes>(?:\+[FWEHILPSAVG])*)(?::(?<namespace>[A-Z][A-Z0-9]*))?(?:@(?<version>\d+\.\d+\.\d+))?$/;
+	/^(?<persona>[NZGAMDC])(?<level>[0-5])(?<scopes>(?:\+[FWPETOVAHSR])*)(?::(?<namespace>[A-Z]{1,8}))?(?:@(?<version>(?:\d{1,3}\.\d{1,3}\.\d{1,3})|latest|canary))?$/;
+const MAX_CSM1_LENGTH = 50;
 
 export function parseCSM1(raw: string): { ok: true; code: ParsedCSM1 } | { ok: false; error: CSM1Error } {
 	if (!raw) {
 		return { ok: false, error: { message: 'CSM-1 code cannot be empty' } };
 	}
 
-	const trimmed = raw.trim().toUpperCase();
-	const match = CSM1_PATTERN.exec(trimmed);
+	if (raw.length > MAX_CSM1_LENGTH) {
+		return { ok: false, error: { message: `CSM-1 code exceeds maximum length ${MAX_CSM1_LENGTH}` } };
+	}
+	const match = CSM1_PATTERN.exec(raw);
 	if (!match?.groups) {
 		return { ok: false, error: { message: `Invalid CSM-1 code: ${raw}` } };
 	}
@@ -87,6 +89,9 @@ export function parseCSM1(raw: string): { ok: true; code: ParsedCSM1 } | { ok: f
 	}
 
 	const level = parseInt(levelStr, 10);
+	if (pChar === 'C' && !namespace) {
+		return { ok: false, error: { message: 'Custom persona requires a namespace' } };
+	}
 
 	const scopes: ScopeInfo[] = [];
 	if (scopesStr) {
@@ -96,13 +101,26 @@ export function parseCSM1(raw: string): { ok: true; code: ParsedCSM1 } | { ok: f
 			if (!scope) {
 				return { ok: false, error: { message: `Unknown scope: ${c}` } };
 			}
+			if (scopes.includes(scope)) {
+				return { ok: false, error: { message: 'CSM-1 scopes must be unique' } };
+			}
 			scopes.push(scope);
 		}
 	}
+	for (const [left, right] of [
+		['F', 'A'],
+		['V', 'A'],
+		['H', 'A']
+	] as const) {
+		if (scopes.some((scope) => scope.char === left) && scopes.some((scope) => scope.char === right)) {
+			return { ok: false, error: { message: `Conflicting scopes ${left} and ${right} cannot be combined` } };
+		}
+	}
 
+	const sortedScopes = [...scopes].sort((left, right) => left.char.localeCompare(right.char));
 	let encoded = `${pChar}${level}`;
 	if (scopes.length > 0) {
-		encoded += '+' + scopes.map((s) => s.char).join('+');
+		encoded += '+' + sortedScopes.map((scope) => scope.char).join('+');
 	}
 	if (namespace) encoded += `:${namespace}`;
 	if (version) encoded += `@${version}`;
@@ -110,7 +128,7 @@ export function parseCSM1(raw: string): { ok: true; code: ParsedCSM1 } | { ok: f
 	return {
 		ok: true,
 		code: {
-			raw: trimmed,
+		raw,
 			persona,
 			level,
 			scopes,
@@ -132,7 +150,7 @@ export function encodeCSM1(
 ): string {
 	let result = `${personaChar}${level}`;
 	if (scopeChars.length > 0) {
-		result += '+' + scopeChars.join('+');
+		result += '+' + [...scopeChars].sort().join('+');
 	}
 	if (namespace) result += `:${namespace}`;
 	if (version) result += `@${version}`;

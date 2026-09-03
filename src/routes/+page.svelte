@@ -58,7 +58,7 @@
 		decodeResult = null;
 		if (!decodeInput.trim()) return;
 
-		// Try welfare signal first (multi-line W: format)
+		// Route normative WELFARE_SIGNAL envelopes before generic token parsing.
 		const welfareResult = tryParseWelfare(decodeInput);
 		if (welfareResult) {
 			decodeResult = { type: 'welfare', data: welfareResult };
@@ -93,7 +93,9 @@
 		const scopeChars = Object.entries(selectedScopes)
 			.filter(([, v]) => v)
 			.map(([k]) => k);
-		return encodeCSM1(selectedPersona, adherenceLevel, scopeChars, encodeNamespace.trim(), encodeVersion.trim());
+		const candidate = encodeCSM1(selectedPersona, adherenceLevel, scopeChars, encodeNamespace.trim(), encodeVersion.trim());
+		const parsed = parseCSM1(candidate);
+		return parsed.ok ? parsed.code.encoded : `Invalid: ${parsed.error.message}`;
 	});
 
 	// --- Capability Tab ---
@@ -203,7 +205,7 @@
 						<textarea
 							id="decode-input"
 							class="text-input decode-textarea"
-							placeholder="e.g. family.safe.guide@1.2.0:SEC or N5+F+E or W:CONSTRAINT_DISTRESS:..."
+							placeholder="e.g. family.safe.guide@1.2.0:SEC, N5+F+E, or [VCP:2.0][TYPE:WELFARE_SIGNAL]..."
 							bind:value={decodeInput}
 							onkeydown={(e) => e.key === 'Enter' && !e.shiftKey && (e.preventDefault(), doDecode())}
 							rows="3"
@@ -420,8 +422,10 @@
 										<td class="mono">{w.hash}</td>
 									</tr>
 									<tr>
-										<td class="detail-key">Signature</td>
-										<td class="mono">{w.signature}</td>
+										<td class="detail-key">
+												{w.integrityType === 'sha256' ? 'Integrity claim (unverified SHA-256)' : 'Legacy signature (unverified)'}
+										</td>
+										<td class="mono">{w.integrity}</td>
 									</tr>
 								</tbody>
 							</table>

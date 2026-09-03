@@ -40,7 +40,7 @@ export const EXTENSIONS: VCPExtension[] = [
 		id: 'VCP-X-Intent',
 		name: 'Intent Declaration',
 		description: 'Explicit user intent and boundary signaling',
-		version: '1.0.0'
+		version: '0.1.0'
 	},
 	{
 		id: 'VCP-X-Welfare',
@@ -50,31 +50,41 @@ export const EXTENSIONS: VCPExtension[] = [
 	}
 ];
 
+const EXTENSION_ID_PATTERN = /^VCP-X-[A-Za-z][A-Za-z0-9-]*$/;
+const SUPPORTED_EXTENSION_IDS = new Set(EXTENSIONS.map((extension) => extension.id));
+
+function validUniqueExtensions(extensions: string[]): string[] {
+	return [...new Set(extensions.filter((extension) => EXTENSION_ID_PATTERN.test(extension)))];
+}
+
 export interface VCPHello {
-	type: 'VCP-Hello';
+	type: 'vcp-hello';
 	version: string;
+	min_version: string;
 	extensions: string[];
-	capabilities: {
-		constitutional_enforcement: boolean;
-		bilateral_alignment: boolean;
-		streaming: boolean;
-	};
+	identity: string | null;
+	client_id: string;
 }
 
 export interface VCPAck {
-	type: 'VCP-Ack';
+	type: 'vcp-ack';
 	version: string;
-	accepted_extensions: string[];
-	rejected_extensions: string[];
-	session_id: string;
-	negotiated: {
-		constitutional_enforcement: boolean;
-		bilateral_alignment: boolean;
-		streaming: boolean;
+	supported: string[];
+	unsupported: string[];
+	capabilities: Record<string, Record<string, unknown>>;
+	core_features: {
+		encryption: boolean;
+		injection_scanning: boolean;
+		revocation: boolean;
+		audit_chain: boolean;
+		context_opacity: boolean;
 	};
+	server_id: string;
+	session_id: string;
 }
 
 function generateSessionId(): string {
+	if (globalThis.crypto?.randomUUID) return globalThis.crypto.randomUUID();
 	const chars = 'abcdef0123456789';
 	let id = '';
 	for (let i = 0; i < 32; i++) {
@@ -86,29 +96,33 @@ function generateSessionId(): string {
 
 export function generateHello(selectedExtensions: string[]): VCPHello {
 	return {
-		type: 'VCP-Hello',
-		version: '3.2.0',
-		extensions: selectedExtensions,
-		capabilities: {
-			constitutional_enforcement: true,
-			bilateral_alignment: true,
-			streaming: true
-		}
+		type: 'vcp-hello',
+		version: '3.1',
+		min_version: '1.0',
+		extensions: validUniqueExtensions(selectedExtensions),
+		identity: null,
+		client_id: 'vcp-inspector'
 	};
 }
 
 export function generateAck(hello: VCPHello): VCPAck {
-	// Simulate server accepting all extensions
+	const requested = validUniqueExtensions(hello.extensions);
+	const supported = requested.filter((extension) => SUPPORTED_EXTENSION_IDS.has(extension));
+	const unsupported = requested.filter((extension) => !SUPPORTED_EXTENSION_IDS.has(extension));
 	return {
-		type: 'VCP-Ack',
-		version: '3.2.0',
-		accepted_extensions: hello.extensions,
-		rejected_extensions: [],
+		type: 'vcp-ack',
+		version: hello.version,
+		supported,
+		unsupported,
+		capabilities: Object.fromEntries(supported.map((extension) => [extension, {}])),
+		core_features: {
+			encryption: true,
+			injection_scanning: true,
+			revocation: true,
+			audit_chain: true,
+			context_opacity: true
+		},
+		server_id: 'vcp-inspector-simulation',
 		session_id: generateSessionId(),
-		negotiated: {
-			constitutional_enforcement: true,
-			bilateral_alignment: hello.capabilities.bilateral_alignment,
-			streaming: hello.capabilities.streaming
-		}
 	};
 }
