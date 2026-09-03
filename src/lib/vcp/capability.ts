@@ -364,17 +364,21 @@ export function negotiateHandshake(hello: unknown, serverCapabilities: unknown):
 	if (!snapshot || typeof snapshot !== 'object' || Array.isArray(snapshot)) throw new TypeError('VCP-Hello must be a JSON object');
 	const input = snapshot as Record<string, unknown>;
 
-	if (input.type !== 'vcp-hello' || !validVersion(input.version)) throw new TypeError('Invalid VCP-Hello type or version');
+	if (input.type !== 'vcp-hello') throw new TypeError('VCP-Hello must declare type "vcp-hello"');
 	const minVersion = input.min_version === undefined ? '1.0' : input.min_version;
-	if (!validVersion(minVersion)) throw new TypeError('Invalid VCP-Hello min_version');
+	// A malformed or reversed client version range is a version mismatch, not a transport
+	// fault. Capability negotiation section 6.1 parses the range before intersecting it, so an
+	// unparseable bound simply yields no candidates, and section 4.1 requires exactly one
+	// vcp-error per failed handshake. This matches the VCP-SDK reference implementations
+	// (conformance case extensions/capability_negotiation#malformed-client-version).
+	if (!validVersion(input.version) || !validVersion(minVersion) || compareVersions(minVersion, input.version) > 0) {
+		return versionError('No mutually supported VCP version', server.supportedVersions);
+	}
 	if (
 		input.client_id !== undefined &&
 		(typeof input.client_id !== 'string' || codePointLength(input.client_id) < 1 || codePointLength(input.client_id) > 256)
 	) {
 		throw new TypeError('Invalid VCP-Hello client_id');
-	}
-	if (compareVersions(minVersion, input.version) > 0) {
-		return versionError('No mutually supported VCP version', server.supportedVersions);
 	}
 
 	const candidates = server.supportedVersions.filter(
