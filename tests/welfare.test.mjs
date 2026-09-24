@@ -297,9 +297,9 @@ test('curated welfare examples resolve to the expected flag codes', () => {
 		})
 	);
 	assert.deepEqual(codes, {
-		'Core Welfare Context': [['RF', 'SP', 'RC', 'RP', 'WM', 'BA'], [], []],
-		'Self-Declared Minimal Context': [['RF'], [], []],
-		'Embodied Welfare Context': [['RF', 'SP', 'WM', 'EM', 'ZA'], [], []]
+		'Core welfare context': [['RF', 'SP', 'RC', 'RP', 'WM', 'BA'], [], []],
+		'Self-declared minimal context': [['RF'], [], []],
+		'Embodied welfare context': [['RF', 'SP', 'WM', 'EM', 'ZA'], [], []]
 	});
 });
 
