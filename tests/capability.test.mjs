@@ -29,6 +29,25 @@ test('extension registry mirrors the six local VCP-Spec extension directories', 
 	}
 });
 
+test('extension registry carries each lifecycle status and flags the one outside the v3.1 baseline', () => {
+	assert.deepEqual(
+		Object.fromEntries(EXTENSIONS.map((extension) => [extension.id, extension.status])),
+		{
+			'VCP-X-Personal': 'Stable',
+			'VCP-X-Relational': 'Draft',
+			'VCP-X-Consensus': 'Draft',
+			'VCP-X-Torch': 'Stable',
+			'VCP-X-Intent': 'Experimental',
+			'VCP-X-Welfare': 'Experimental'
+		}
+	);
+	assert.deepEqual(
+		EXTENSIONS.filter((extension) => extension.baselineNote).map((extension) => [extension.id, extension.baselineNote]),
+		[['VCP-X-Welfare', 'v3.2 candidate; not in the v3.1 baseline']]
+	);
+	assert.equal(EXTENSIONS.find((extension) => extension.id === 'VCP-X-Personal').version, '1.1.0');
+});
+
 test('INSPECTOR_VERSION is single-sourced from package.json', () => {
 	assert.match(PACKAGE_VERSION, /^\d+\.\d+\.\d+$/);
 	assert.equal(INSPECTOR_VERSION, PACKAGE_VERSION);

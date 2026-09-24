@@ -117,8 +117,8 @@
 						VCP Inspector
 					</h1>
 					<p class="header-subtitle">
-						Inspect VCP/I tokens and URIs, CSM-1 codes, welfare signals, Agent Runtime artifacts, and
-						capability negotiation
+						Inspect UVC tokens (VCP/I) and URIs, CSM-1 codes, WC/AS welfare snapshots, Agent Runtime
+						artifacts, and capability negotiation
 					</p>
 				</div>
 			</div>
@@ -158,8 +158,8 @@
 			<div class="tab-content" role="tabpanel" id="panel-decode" aria-labelledby="tab-decode">
 				<div>
 					<label for="decode-input" class="field-label">
-						Paste a VCP/I token or URI, CSM-1 code (NANO, MICRO, or COMPACT), welfare signal, or Agent
-						Runtime JSON artifact
+						Paste a UVC token (VCP/I) or URI, CSM-1 code (NANO, MICRO, or COMPACT), WC/AS welfare
+						snapshot, or Agent Runtime JSON artifact
 					</label>
 					<div class="input-col">
 						<textarea
@@ -193,7 +193,7 @@
 					<div class="result-section">
 						<h2 class="result-title">
 							<i class="fa-solid fa-key" aria-hidden="true"></i>
-							VCP/I Token
+							UVC token (VCP/I)
 						</h2>
 						<div class="glass-card result-card">
 							<!-- Syntax highlighted token -->
@@ -256,7 +256,7 @@
 										<td class="mono">{t.canonical}</td>
 									</tr>
 									<tr>
-										<td class="detail-key">Registry URI (creed.space)</td>
+										<td class="detail-key">URI (creed://, example issuer creed.space)</td>
 										<td class="mono">{t.uri}</td>
 									</tr>
 								</tbody>
@@ -270,7 +270,7 @@
 					<div class="result-section">
 						<h2 class="result-title">
 							<i class="fa-solid fa-code" aria-hidden="true"></i>
-							CSM-1 Code
+							CSM-1 code
 						</h2>
 						<div class="glass-card result-card">
 							<div class="token-preview">
@@ -333,7 +333,7 @@
 					<div class="result-section">
 						<h2 class="result-title">
 							<i class="fa-solid fa-code" aria-hidden="true"></i>
-							CSM-1 COMPACT Code
+							CSM-1 COMPACT code
 						</h2>
 						<div class="glass-card result-card">
 							<div class="token-preview">
@@ -377,7 +377,7 @@
 										</td>
 									</tr>
 									<tr>
-										<td class="detail-key">VCP/I token</td>
+										<td class="detail-key">UVC token</td>
 										<td class="mono">{c.token.full}</td>
 									</tr>
 									<tr>
@@ -402,8 +402,13 @@
 					<div class="result-section">
 						<h2 class="result-title">
 							<i class="fa-solid fa-heart-pulse" aria-hidden="true"></i>
-							VCP/S Welfare Snapshot
+							VCP/S welfare snapshot
+							<span class="badge badge-danger">Experimental</span>
 						</h2>
+						<p class="validation-note">
+							WC/AS welfare lines are a VCP 3.2 candidate, not part of the v3.1 baseline, and not
+							implemented in VCP-SDK 4.2.0.
+						</p>
 						<div class="glass-card result-card">
 							<div class="welfare-header">
 								<span class="welfare-type">Welfare Context and Agent State</span>
@@ -434,7 +439,7 @@
 										<tr>
 											<td class="detail-key">Skipped</td>
 											<td class="detail-note">
-												{w.context.unknownFlags.length} unrecognised flag symbol{w.context.unknownFlags.length === 1 ? '' : 's'}: {w.context.unknownFlags.join(' ')}
+												{w.context.unknownFlags.length} unrecognized flag symbol{w.context.unknownFlags.length === 1 ? '' : 's'}: {w.context.unknownFlags.join(' ')}
 											</td>
 										</tr>
 									{/if}
@@ -468,7 +473,7 @@
 										<tr>
 											<td class="detail-key">Skipped</td>
 											<td class="detail-note">
-												{w.agentState.unknownDimensions.length} unrecognised dimension symbol{w.agentState.unknownDimensions.length === 1 ? '' : 's'}: {w.agentState.unknownDimensions.join(' ')}
+												{w.agentState.unknownDimensions.length} unrecognized dimension symbol{w.agentState.unknownDimensions.length === 1 ? '' : 's'}: {w.agentState.unknownDimensions.join(' ')}
 											</td>
 										</tr>
 									{/if}
@@ -482,7 +487,7 @@
 					<div class="result-section">
 						<h2 class="result-title">
 							<i class="fa-solid fa-gauge-high" aria-hidden="true"></i>
-							Agent Runtime Profile Artifact
+							Agent Runtime Profile artifact
 						</h2>
 						<div class="glass-card result-card">
 							<div class="runtime-header">
@@ -545,13 +550,13 @@
 		<!-- Encode Tab -->
 		{:else if activeTab === 'encode'}
 			<div class="tab-content" role="tabpanel" id="panel-encode" aria-labelledby="tab-encode">
-				<h2 class="section-title">Build a CSM-1 Code</h2>
+				<h2 class="section-title">Build a CSM-1 code</h2>
 
 				<!-- Live Preview -->
 				<div class="preview-card">
 					<div class="preview-label">
 						<i class="fa-solid fa-eye" aria-hidden="true"></i>
-						Live Preview
+						Live preview
 					</div>
 					<div class="preview-value">{encodedResult.value}</div>
 				</div>
@@ -586,7 +591,7 @@
 				<!-- Adherence Level -->
 				<div class="field-group">
 					<label for="level-slider" class="field-label">
-						Adherence Level: <span class="token-approach">{adherenceLevel}</span>
+						Adherence level: <span class="token-approach">{adherenceLevel}</span>
 						<span class="detail-note">({LEVEL_LABELS[adherenceLevel]})</span>
 					</label>
 					<input
@@ -662,9 +667,11 @@
 		<!-- Capability Tab -->
 		{:else if activeTab === 'capability'}
 			<div class="tab-content" role="tabpanel" id="panel-capability" aria-labelledby="tab-capability">
-				<h2 class="section-title">VCP Capability Negotiation</h2>
+				<h2 class="section-title">VCP capability negotiation</h2>
 				<p class="section-desc">
-					Select the extensions the client requests; the simulated server advertises all six at VCP 3.1, so the VCP-Ack shows dependency degradation rather than unsupported extensions.
+					Select the extensions the client requests. The simulated server advertises all six registered
+					extensions (the five in the VCP 3.1 baseline plus the experimental 3.2-candidate VCP-X-Welfare),
+					so the VCP-Ack shows dependency degradation rather than unsupported extensions.
 				</p>
 
 				<!-- Extension Selection -->
@@ -678,8 +685,13 @@
 									bind:checked={selectedExtensions[ext.id]}
 								/>
 								<div>
-									<div class="ext-id">{ext.id}</div>
-									<div class="ext-desc">{ext.description}</div>
+									<div class="ext-id">
+										{ext.id}
+										<span class="badge {ext.status === 'Stable' ? 'badge-success' : ext.status === 'Draft' ? 'badge-primary' : 'badge-danger'}">{ext.status}</span>
+									</div>
+									<div class="ext-desc">
+										{ext.description}{#if ext.baselineNote} ({ext.baselineNote}){/if}
+									</div>
 								</div>
 							</label>
 						{/each}
@@ -690,7 +702,7 @@
 				<div class="field-group">
 					<h3 class="field-label">
 						<i class="fa-solid fa-arrow-right" aria-hidden="true"></i>
-						VCP-Hello (Client)
+						VCP-Hello (client)
 					</h3>
 					<pre class="code-block code-green">{JSON.stringify(helloMessage, null, 2)}</pre>
 				</div>
@@ -699,7 +711,7 @@
 				<div class="field-group">
 					<h3 class="field-label">
 						<i class="fa-solid fa-arrow-left" aria-hidden="true"></i>
-						VCP-Ack (Server)
+						VCP-Ack (server)
 					</h3>
 					<pre class="code-block code-indigo">{JSON.stringify(ackMessage, null, 2)}</pre>
 				</div>
@@ -708,7 +720,7 @@
 		<!-- Layers Tab -->
 		{:else if activeTab === 'layers'}
 			<div class="tab-content" role="tabpanel" id="panel-layers" aria-labelledby="tab-layers">
-				<h2 class="section-title">Protocol Layers: {getLayerMnemonic()}</h2>
+				<h2 class="section-title">Protocol layers: {getLayerMnemonic()}</h2>
 				<p class="section-desc">
 					The VCP six-layer stack, from identity through economic governance.
 				</p>
@@ -735,7 +747,7 @@
 		<!-- Examples Tab -->
 		{:else if activeTab === 'examples'}
 			<div class="tab-content" role="tabpanel" id="panel-examples" aria-labelledby="tab-examples">
-				<h2 class="section-title">Example Tokens and Codes</h2>
+				<h2 class="section-title">Example tokens and codes</h2>
 				<p class="section-desc">Click any example to load it into the Decode tab.</p>
 
 				<div class="examples-list">
