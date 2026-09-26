@@ -11,13 +11,11 @@ Reports should name the affected surface and, where known, the commit hash.
 
 ## Reporting a vulnerability
 
-Do not open a public issue for a suspected vulnerability. Email
-[security@creedspace.com](mailto:security@creedspace.com).
-
-GitHub private vulnerability reporting is not yet enabled for this repository.
-Once it is, the repository's
+Do not open a public issue for a suspected vulnerability. Use the repository's
 [private vulnerability report](https://github.com/Creed-Space/VCP-Inspector/security/advisories/new)
-becomes the preferred route, with email as the fallback.
+form, or email
+[security@creedspace.com](mailto:security@creedspace.com) if you cannot use
+GitHub.
 
 Include the affected component, impact, reproduction steps, a minimal proof of
 concept where safe, and any proposed mitigation. Do not send live credentials,
