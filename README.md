@@ -2,7 +2,7 @@
 
 # VCP Inspector
 
-**Try the Value-Context Protocol in 30 seconds.**
+**Try the Value Context Protocol in 30 seconds.**
 
 ### [https://inspector.valuecontextprotocol.org/](https://inspector.valuecontextprotocol.org/)
 
@@ -15,7 +15,7 @@
 
 ## What it does
 
-An interactive web tool for exploring the [Value-Context Protocol (VCP)](https://github.com/Creed-Space/VCP-Spec). Five tabs:
+An interactive web tool for exploring the [Value Context Protocol (VCP)](https://github.com/Creed-Space/VCP-Spec). Five tabs:
 
 | Tab | Description |
 |-----|-------------|

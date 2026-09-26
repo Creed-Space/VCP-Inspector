@@ -785,7 +785,7 @@
 
 	<!-- Footer -->
 	<footer class="inspector-footer">
-		VCP Inspector v{INSPECTOR_VERSION} &mdash; Value-Context Protocol v3.1 &mdash;
+		VCP Inspector v{INSPECTOR_VERSION} &mdash; Value Context Protocol v3.1 &mdash;
 		<a href="https://creed.space">Creed Space</a>
 	</footer>
 </div>
