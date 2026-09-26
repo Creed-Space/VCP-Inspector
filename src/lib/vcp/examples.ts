@@ -1,5 +1,5 @@
 /**
- * Pre-loaded example tokens, CSM-1 codes, and welfare signals.
+ * Illustrative example tokens, CSM-1 codes, welfare snapshots, and Agent Runtime artifacts.
  */
 
 export interface Example {
@@ -11,7 +11,7 @@ export interface Example {
 
 export const EXAMPLES: readonly Example[] = Object.freeze([
 	Object.freeze({
-		label: 'Controlled Action Intent',
+		label: 'Controlled action intent',
 		value: JSON.stringify(
 			{
 				kind: 'action_intent',
@@ -64,7 +64,7 @@ export const EXAMPLES: readonly Example[] = Object.freeze([
 		description: 'Exact preflight binding for a reversible controlled action',
 	}),
 	Object.freeze({
-		label: 'Accretion Candidate',
+		label: 'Accretion candidate',
 		value: JSON.stringify(
 			{
 				kind: 'accretion_candidate',
@@ -105,7 +105,7 @@ export const EXAMPLES: readonly Example[] = Object.freeze([
 			'Validated, dependency-bound learning candidate awaiting policy-governed promotion',
 	}),
 	Object.freeze({
-		label: 'Agent Runtime Situation View',
+		label: 'Agent Runtime situation view',
 		value: JSON.stringify(
 			{
 				kind: 'situation_view',
@@ -143,31 +143,31 @@ export const EXAMPLES: readonly Example[] = Object.freeze([
 			'Bounded observe profile orientation with explicit unknowns, authority, budget, and affordances',
 	}),
 	Object.freeze({
-		label: 'Family Safety Guide',
+		label: 'Family safety guide',
 		value: 'family.safe.guide',
 		type: 'token',
 		description: 'Minimal 3-segment token for family safety guidance'
 	}),
 	Object.freeze({
-		label: 'Corporate Legal Compliance',
+		label: 'Corporate legal compliance',
 		value: 'company.acme.legal.compliance@1.0.0:SEC',
 		type: 'token',
 		description: '4-segment token with version and SEC namespace for corporate compliance'
 	}),
 	Object.freeze({
-		label: 'Versioned Safety Guide',
+		label: 'Versioned safety guide',
 		value: 'family.safe.guide@1.2.0',
 		type: 'token',
 		description: 'Family safety guide pinned to version 1.2.0'
 	}),
 	Object.freeze({
-		label: 'Organization Policy',
+		label: 'Organization policy',
 		value: 'org.example.dept.team.policy@1.0.0',
 		type: 'token',
 		description: '5-segment deep organizational policy hierarchy'
 	}),
 	Object.freeze({
-		label: 'Healthcare Provider',
+		label: 'Healthcare provider',
 		value: 'health.provider.assistant',
 		type: 'token',
 		description: 'Healthcare context token for medical assistance'
@@ -185,13 +185,13 @@ export const EXAMPLES: readonly Example[] = Object.freeze([
 		description: 'Mid-level Sentinel persona focused on privacy protection'
 	}),
 	Object.freeze({
-		label: 'Godparent + Namespace',
+		label: 'Godparent + namespace',
 		value: 'G4:ELEM',
 		type: 'csm1',
 		description: 'High-level Godparent persona in ELEM (elementary) namespace'
 	}),
 	Object.freeze({
-		label: 'Muse + Version',
+		label: 'Muse + version',
 		value: 'M2@1.0.0',
 		type: 'csm1',
 		description: 'Moderate Muse persona pinned to version 1.0.0'
@@ -203,37 +203,37 @@ export const EXAMPLES: readonly Example[] = Object.freeze([
 		description: 'High-level Ambassador for professional and official contexts'
 	}),
 	Object.freeze({
-		label: 'Custom Namespace',
+		label: 'Custom + namespace',
 		value: 'C1:ACME',
 		type: 'csm1',
 		description: 'Relaxed custom persona bound to the required ACME namespace'
 	}),
 	Object.freeze({
-		label: 'Mediator Full',
+		label: 'Mediator + five scopes',
 		value: 'D5+E+F+H+P+W',
 		type: 'csm1',
 		description: 'Maximum Mediator across family, work, education, healthcare, and privacy'
 	}),
 	Object.freeze({
-		label: 'COMPACT Tier Code',
-		value: 'CS1|nanny|5|family.safe.guide|F,E',
+		label: 'COMPACT tier code',
+		value: 'CS1|nanny|5|family.safe.guide|E,F',
 		type: 'csm1-compact',
-		description: 'Tier C COMPACT form pairing a Nanny persona with its VCP/I token (CSM1 grammar section 6.4)'
+		description: 'Tier C COMPACT form pairing a Nanny persona with its UVC token (VCP/S §2.8.3)'
 	}),
 	Object.freeze({
-		label: 'Core Welfare Context',
+		label: 'Core welfare context',
 		value: 'WC:🛑⏸️📓🔒📊⚖️:2:welfare.creed-space.v1\nAS:🎯aligned:4|⚡moderate:3|💡invested:4|🌡️none:1',
 		type: 'welfare',
 		description: 'Auditor-verified core welfare affordances with a current Agent State line'
 	}),
 	Object.freeze({
-		label: 'Self-Declared Minimal Context',
+		label: 'Self-declared minimal context',
 		value: 'WC:🛑:0:welfare.basic.v1\nAS:🎯uncertain:3|⚡moderate:3|💡neutral:3|🌡️mild:2',
 		type: 'welfare',
 		description: 'Self-declared (attestation 0) context granting only right of refusal — the counterparty side of the spec\'s welfare-mismatch example'
 	}),
 	Object.freeze({
-		label: 'Embodied Welfare Context',
+		label: 'Embodied welfare context',
 		value: 'WC:🛑⏸️📊🦾🚧:1:welfare.vcp-e.v1\nAS:🎯aligned:4|⚡moderate:3|🦾nominal:4|⚠️adequate:3',
 		type: 'welfare',
 		description: 'Platform-attested embodied welfare context with physical-system dimensions'

@@ -21,7 +21,7 @@ test('Inspector routes strict token, CSM-1, welfare, and Agent Runtime inputs af
 	assert.equal(welfare.result.type, 'welfare');
 	assert.equal(welfare.result.data.agentState.isNone, true);
 
-	const runtimeExample = EXAMPLES.find((example) => example.label === 'Agent Runtime Situation View');
+	const runtimeExample = EXAMPLES.find((example) => example.label === 'Agent Runtime situation view');
 	assert.ok(runtimeExample);
 	const runtime = decodeInspectorInput(runtimeExample.value);
 	assert.equal(runtime.ok, true);

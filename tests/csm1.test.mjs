@@ -125,12 +125,13 @@ test('CSM-1 encoder rejects every invalid structured boundary without coercion',
 	}
 });
 
-test('CSM-1 COMPACT parser accepts the grammar section 6.4 examples and reference-SDK output', async (t) => {
+test('CSM-1 COMPACT parser accepts the VCP/S §2.8.3 examples, unsorted scopes, and full UVC tokens', async (t) => {
 	const vectors = [
-		['CS1|nanny|5|family.safe.guide|F,E', 'N', 5, ['F', 'E'], 'family.safe.guide', 'N5+E+F', true],
+		['CS1|nanny|5|family.safe.guide|E,F', 'N', 5, ['E', 'F'], 'family.safe.guide', 'N5+E+F', true],
 		['CS1|sentinel|4|secure.privacy.guardian|P,W', 'Z', 4, ['P', 'W'], 'secure.privacy.guardian', 'Z4+P+W', false],
-		['CS1|custom|3|company.acme.legal|W,O', 'C', 3, ['W', 'O'], 'company.acme.legal', 'C3+O+W', false],
-		['CS1|muse|2|art.studio.guide@1.2.0:SEC|', 'M', 2, [], 'art.studio.guide', 'M2', false]
+		['CS1|custom|3|company.acme.legal|O,W', 'C', 3, ['O', 'W'], 'company.acme.legal', 'C3+O+W', false],
+		['CS1|nanny|5|family.safe.guide|F,E', 'N', 5, ['F', 'E'], 'family.safe.guide', 'N5+E+F', true],
+		['CS1|muse|2|art.studio.guide@1.2.0:SEC|S', 'M', 2, ['S'], 'art.studio.guide', 'M2+S', false]
 	];
 	for (const [raw, persona, level, scopes, canonical, encoded, isMaximum] of vectors) {
 		await t.test(raw, () => {
@@ -148,7 +149,7 @@ test('CSM-1 COMPACT parser accepts the grammar section 6.4 examples and referenc
 			assert.ok(Object.isFrozen(result.code.scopes));
 		});
 	}
-	assert.equal(parseCSM1Compact('CS1|muse|2|art.studio.guide@1.2.0:SEC|').code.token.namespace, 'SEC');
+	assert.equal(parseCSM1Compact('CS1|muse|2|art.studio.guide@1.2.0:SEC|S').code.token.namespace, 'SEC');
 });
 
 test('CSM-1 COMPACT parser rejects every malformed field with a specific message', async (t) => {
@@ -159,6 +160,8 @@ test('CSM-1 COMPACT parser rejects every malformed field with a specific message
 		['N5+F+E', 'COMPACT code format'],
 		['CS1|nanny|6|family.safe.guide|F', 'COMPACT code format'],
 		['CS1|Nanny|5|family.safe.guide|F', 'COMPACT code format'],
+		['CS1|nanny|5|family.safe.guide|', 'COMPACT code format'],
+		['CS1|muse|2|art.studio.guide@1.2.0:SEC|', 'COMPACT code format'],
 		['CS1|nanny|5|family.safe.guide|F,', 'COMPACT code format'],
 		['CS1|nanny|5|family.safe.guide|F+E', 'COMPACT code format'],
 		['CS1|nanny|5|family.safe.guide|F,E|', 'COMPACT code format'],

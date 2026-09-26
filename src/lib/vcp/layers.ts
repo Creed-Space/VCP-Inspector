@@ -1,8 +1,8 @@
 /**
  * VCP Six-Layer I-T-S-A-M-E Model.
  *
- * Defines the protocol stack layers from identity negotiation
- * through economic governance.
+ * Defines the six protocol stack layers, from Layer 1 Identity (naming and
+ * addressing) through Layer 6 Economic Governance.
  */
 
 export interface VCPLayer {

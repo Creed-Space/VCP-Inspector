@@ -31,7 +31,7 @@ export interface WelfareDimension {
 
 export interface WelfareContext {
 	readonly flags: readonly WelfareFlagInfo[];
-	/** Emoji symbols in the WC line that were skipped as unrecognised. */
+	/** Emoji symbols in the WC line that were skipped as unrecognized. */
 	readonly unknownFlags: readonly string[];
 	readonly attestationLevel: number;
 	readonly schemaRef: string;
@@ -39,7 +39,7 @@ export interface WelfareContext {
 
 export interface WelfareAgentState {
 	readonly dimensions: readonly WelfareDimension[];
-	/** Emoji symbols in the AS line that were skipped as unrecognised. */
+	/** Emoji symbols in the AS line that were skipped as unrecognized. */
 	readonly unknownDimensions: readonly string[];
 	readonly isNone: boolean;
 }

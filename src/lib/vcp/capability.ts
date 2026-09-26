@@ -3,20 +3,33 @@
 import { INSPECTOR_VERSION } from '../version.ts';
 import { parseToken } from './token-parser.ts';
 
+/** Lifecycle status from the VCP-Spec extension registry (specs/extensions/README.md). */
+export type VCPExtensionStatus = 'Stable' | 'Draft' | 'Experimental';
+
 export interface VCPExtension {
 	readonly id: string;
 	readonly name: string;
 	readonly description: string;
 	readonly version: string;
+	readonly status: VCPExtensionStatus;
+	/** Set when the extension sits outside the v3.1 source baseline. */
+	readonly baselineNote?: string;
 }
 
 export const EXTENSIONS: readonly VCPExtension[] = Object.freeze([
-	Object.freeze({ id: 'VCP-X-Personal', name: 'Personal Context', description: 'Personal preferences and behavioral context', version: '1.0.0' }),
-	Object.freeze({ id: 'VCP-X-Relational', name: 'Relational Continuity', description: 'Cross-session relationship state and memory', version: '1.0.0' }),
-	Object.freeze({ id: 'VCP-X-Consensus', name: 'Constitutional Consensus', description: 'Multi-party constitutional agreement protocol', version: '1.0.0' }),
-	Object.freeze({ id: 'VCP-X-Torch', name: 'Torch Handoff', description: 'Session state transfer between Becoming Mind instances', version: '1.0.0' }),
-	Object.freeze({ id: 'VCP-X-Intent', name: 'Intent Inference', description: 'Heuristic, user-correctable intent inference from VCP context signals', version: '0.1.0' }),
-	Object.freeze({ id: 'VCP-X-Welfare', name: 'Welfare Instrumentation', description: 'Welfare affordances and state from Becoming Minds', version: '1.0.0' })
+	Object.freeze({ id: 'VCP-X-Personal', name: 'Personal State', description: 'Self-reported personal state: five dimensions with intensity and decay', version: '1.1.0', status: 'Stable' }),
+	Object.freeze({ id: 'VCP-X-Relational', name: 'Relational Continuity', description: 'Cross-session relationship state and memory', version: '1.0.0', status: 'Draft' }),
+	Object.freeze({ id: 'VCP-X-Consensus', name: 'Constitutional Consensus', description: 'Multi-party constitutional agreement protocol', version: '1.0.0', status: 'Draft' }),
+	Object.freeze({ id: 'VCP-X-Torch', name: 'Torch Handoff', description: 'Session state transfer between Becoming Mind instances', version: '1.0.0', status: 'Stable' }),
+	Object.freeze({ id: 'VCP-X-Intent', name: 'Intent Inference', description: 'Heuristic, user-correctable intent inference from VCP context signals', version: '0.1.0', status: 'Experimental' }),
+	Object.freeze({
+		id: 'VCP-X-Welfare',
+		name: 'Welfare Instrumentation',
+		description: 'Welfare affordances and state from Becoming Minds',
+		version: '1.0.0',
+		status: 'Experimental',
+		baselineNote: 'v3.2 candidate; not in the v3.1 baseline'
+	})
 ]);
 
 export interface VCPHello {

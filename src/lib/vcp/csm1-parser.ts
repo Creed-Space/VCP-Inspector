@@ -101,7 +101,7 @@ const PERSONA_NAMES = frozenRecord<string>([
 	['custom', 'C']
 ] as const);
 const MAX_COMPACT_LENGTH = 294; // VCP/S §2.8: COMPACT tier is 18-294 characters
-const COMPACT_PATTERN = /^CS1\|(?<persona>[a-z]+)\|(?<level>[0-5])\|(?<token>[^|]+)\|(?<scopes>(?:[FWPETOVAHSR](?:,[FWPETOVAHSR])*)?)$/;
+const COMPACT_PATTERN = /^CS1\|(?<persona>[a-z]+)\|(?<level>[0-5])\|(?<token>[^|]+)\|(?<scopes>[FWPETOVAHSR](?:,[FWPETOVAHSR])*)$/;
 const SCOPE_CONFLICTS = Object.freeze([
 	Object.freeze(['F', 'A'] as const),
 	Object.freeze(['V', 'A'] as const),
@@ -166,12 +166,13 @@ export function parseCSM1(raw: unknown): CSM1ParseResult {
 }
 
 /**
- * Parse a CSM-1 tier C (COMPACT) code per CSM1 grammar section 6.4:
- * `CS1|<persona-name>|<level>|<vcp-i token>|<scope,list>`.
+ * Parse a CSM-1 tier C (COMPACT) code per VCP/S §2.8.3:
+ * `CS1|<persona-name>|<level>|<UVC token>|<scope,list>`.
  *
- * The scope list may be empty, matching the reference SDK's `to_compact()`
- * output for scope-less codes. COMPACT carries no namespace, so a `custom`
- * persona is accepted here without one (the NANO `encoded` form then has none).
+ * The scope list must hold at least one scope, as the VCP/S §2.8.3 grammar
+ * (scope-list = scope *("," scope)) and the schema's compact pattern require.
+ * COMPACT carries no namespace field, so a `custom` persona is accepted here
+ * without one (the NANO `encoded` form then has none).
  */
 export function parseCSM1Compact(raw: unknown): CSM1CompactParseResult {
 	if (typeof raw !== 'string') return failure('CSM-1 COMPACT code must be a string');
@@ -180,7 +181,7 @@ export function parseCSM1Compact(raw: unknown): CSM1CompactParseResult {
 
 	const match = COMPACT_PATTERN.exec(raw);
 	if (!match?.groups || match[0] !== raw) {
-		return failure('Invalid CSM-1 COMPACT code format (expected CS1|persona|level|token|scopes, e.g. CS1|nanny|5|family.safe.guide|F,E)');
+		return failure('Invalid CSM-1 COMPACT code format (expected CS1|persona|level|token|scopes, e.g. CS1|nanny|5|family.safe.guide|E,F)');
 	}
 
 	const { persona: personaName, level: levelText, token: tokenText, scopes: scopeText } = match.groups;
@@ -190,16 +191,14 @@ export function parseCSM1Compact(raw: unknown): CSM1CompactParseResult {
 	const token = parseToken(tokenText);
 	if (!token.ok) return failure(`CSM-1 COMPACT token: ${token.error.message}`);
 
-	const scopeChars = scopeText ? scopeText.split(',') : [];
+	const scopeChars = scopeText.split(',');
 	const uniqueScopes = new Set(scopeChars);
 	if (uniqueScopes.size !== scopeChars.length) return failure('CSM-1 scopes must be unique');
 	const conflict = scopeConflict(uniqueScopes);
 	if (conflict) return failure(`Conflicting CSM-1 scopes: ${conflict[0]} and ${conflict[1]}`);
 
 	const level = Number(levelText);
-	const canonicalScopes = [...scopeChars].sort();
-	let encoded = `${personaChar}${level}`;
-	if (canonicalScopes.length) encoded += `+${canonicalScopes.join('+')}`;
+	const encoded = `${personaChar}${level}+${[...scopeChars].sort().join('+')}`;
 
 	return Object.freeze({
 		ok: true as const,

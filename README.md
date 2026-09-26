@@ -2,7 +2,7 @@
 
 # VCP Inspector
 
-**Try the Value-Context Protocol in 30 seconds.**
+**Try the Value Context Protocol in 30 seconds.**
 
 ### [https://inspector.valuecontextprotocol.org/](https://inspector.valuecontextprotocol.org/)
 
@@ -13,19 +13,19 @@
 
 ---
 
-## What It Does
+## What it does
 
-An interactive web tool for exploring the [Value-Context Protocol (VCP)](https://github.com/Creed-Space/VCP-Spec). Five tabs:
+An interactive web tool for exploring the [Value Context Protocol (VCP)](https://github.com/Creed-Space/VCP-Spec). Five tabs:
 
 | Tab | Description |
 |-----|-------------|
-| **Decode** | Paste a VCP/I token or `creed://` / `vcp://` URI, a CSM-1 code (NANO, MICRO, or COMPACT), or a WC/AS welfare snapshot — get a layer-by-layer breakdown with syntax highlighting |
-| **Encode** | Build a CSM-1 token interactively with live preview |
-| **Capability** | Simulate capability negotiation — select extensions, see VCP-Hello/VCP-Ack exchange |
+| **Decode** | Paste a UVC token (VCP/I) or a `creed://` / `vcp://` URI, a CSM-1 code (NANO, MICRO, or COMPACT), an experimental WC/AS welfare snapshot (VCP/S v2.1 lines, a 3.2 candidate), or an Agent Runtime Profile JSON artifact, and get a field-by-field breakdown with syntax highlighting |
+| **Encode** | Build a CSM-1 code (NANO or MICRO tier) interactively with live preview |
+| **Capability** | Simulate capability negotiation — select extensions, see the VCP-Hello/VCP-Ack exchange and each extension's status (Stable, Draft, or Experimental) |
 | **Layers** | The I-T-S-A-M-E six-layer stack and which layers the Inspector covers |
-| **Examples** | Pre-loaded tokens from real use cases drawn from the VCP spec |
+| **Examples** | Illustrative tokens and codes drawn from the VCP spec's examples |
 
-## Tech Stack
+## Tech stack
 
 - **SvelteKit** with static adapter (fully prerendered)
 - **Tailwind CSS** for styling
@@ -53,10 +53,14 @@ npm run test:interop -- --sdk-root ../VCP-SDK --spec-root ../VCP-Spec
 
 `VCP_SDK_ROOT` and `VCP_SPEC_ROOT` provide equivalent path configuration.
 
+## Security
+
+Report suspected vulnerabilities privately, never in a public issue. See [SECURITY.md](./SECURITY.md).
+
 ## Related
 
-- [VCP Specification](https://github.com/Creed-Space/VCP-Spec) — The protocol spec (v3.1)
-- [VCP SDK](https://github.com/Creed-Space/VCP-SDK) — Python, TypeScript, and Rust SDKs
+- [VCP Specification](https://github.com/Creed-Space/VCP-Spec) — The protocol spec (v3.1 source baseline)
+- [VCP SDK](https://github.com/Creed-Space/VCP-SDK) — Python and Rust implementations plus a TypeScript WebMCP browser integration (4.2.0, published)
 - [Creed Space](https://creed.space) — The project behind VCP
 
 ## License
