@@ -14,7 +14,7 @@ Reports should name the affected surface and, where known, the commit hash.
 Do not open a public issue for a suspected vulnerability. Use the repository's
 [private vulnerability report](https://github.com/Creed-Space/VCP-Inspector/security/advisories/new)
 form, or email
-[security@creedspace.com](mailto:security@creedspace.com) if you cannot use
+[security@creed.space](mailto:security@creed.space) if you cannot use
 GitHub.
 
 Include the affected component, impact, reproduction steps, a minimal proof of
