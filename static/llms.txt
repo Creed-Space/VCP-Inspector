@@ -1,0 +1,15 @@
+# VCP Inspector
+
+> VCP Inspector is an interactive browser tool for exploring supported Value Context Protocol formats through token decoding, CSM-1 code construction, protocol-layer inspection, examples, and capability-negotiation simulation.
+
+The Inspector supports educational inspection and simulation. Parsed fields and simulated exchanges provide no guarantee of safety, alignment, or model compliance.
+
+## Tools
+
+- [VCP Inspector](https://inspector.valuecontextprotocol.org/): Decode, Encode, Capability, Layers, and Examples tabs.
+
+## Protocol documentation
+
+- [Value Context Protocol](https://valuecontextprotocol.org/): Protocol overview and educational resources.
+- [Documentation](https://valuecontextprotocol.org/docs/): Public guides and protocol reference.
+- [CSM-1 specification](https://valuecontextprotocol.org/docs/csm1-specification/): Compact context-code format reference.
